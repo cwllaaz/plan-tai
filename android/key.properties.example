@@ -1,0 +1,16 @@
+# release 签名配置模板 —— **不要**把填好的 `key.properties` 提交到 Git。
+#
+# 使用步骤（详见 docs/android/ANDROID_SIGNING_AND_RELEASE.md）：
+#   1. powershell -File scripts/android/gen_keystore.ps1 -OutDir <本地密钥目录>
+#      （生成 ~/.jks 与 ~/key.properties，并把 storeFile 写成绝对路径）
+#   2. 把 key.properties 复制到 android/key.properties（该文件名已被 android/.gitignore 忽略）
+#   3. flutter build apk --release
+#
+# storeFile 可以是绝对路径，也可以是相对 android/ 目录的路径。
+# 相对路径示例：storeFile=app/jihuatai-release.jks
+# **密钥文件绝对不能提交到 Git，也必须离线备份两份。丢失后无法覆盖升级。**
+
+storePassword=换成你的仓库密码
+keyPassword=换成你的密钥密码
+keyAlias=jihuatai
+storeFile=C:/path/to/your/jihuatai-release.jks

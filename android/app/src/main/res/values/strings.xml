@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 桌面图标与系统「应用信息」里显示的名称。与 pubspec.yaml name 无关。 -->
+    <string name="app_name">计划台</string>
+</resources>

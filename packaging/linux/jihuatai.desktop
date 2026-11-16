@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=计划台
+GenericName=项目与时间管理
+Comment=日历式项目与时间管理系统
+Exec=jihuatai
+Icon=jihuatai
+Terminal=false
+Categories=Office;ProjectManagement;Calendar;
+Keywords=计划台;jihuatai;日历;任务;项目;calendar;task;planner;
+StartupNotify=true
+StartupWMClass=com.jihuatai.jihuatai

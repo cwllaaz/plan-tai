@@ -1,0 +1,1031 @@
+{
+  "fixtureVersion": 1,
+  "protocolVersion": 1,
+  "schemaVersion": 1,
+  "description": "计划台 V2 同步协议固定样例。所有 UUID/时间/游标均为固定值，禁止运行时随机替换。",
+  "common": {
+    "ownerId": "usr_01j9owner0000000000000000",
+    "deviceA": "0192f0a0-0000-7000-8000-00000000000a",
+    "deviceB": "0192f0a0-0000-7000-8000-00000000000b",
+    "projectId": "0192f0a1-0000-7000-8000-000000000001",
+    "spanId": "0192f0a1-0000-7000-8000-000000000002",
+    "taskId": "0192f0a2-0000-7000-8000-000000000001",
+    "taskCopyId": "0192f0a2-0000-7000-8000-000000000002",
+    "noteId": "0192f0a3-0000-7000-8000-000000000001",
+    "opCreateTask": "0192f0b0-0000-7000-8000-000000000001",
+    "opUpdateTask": "0192f0b0-0000-7000-8000-000000000002",
+    "opDeleteTask": "0192f0b0-0000-7000-8000-000000000003",
+    "opUpdateTaskA": "0192f0b0-0000-7000-8000-000000000005",
+    "opUpdateTaskB": "0192f0b0-0000-7000-8000-000000000006",
+    "opDeleteTaskA": "0192f0b0-0000-7000-8000-000000000007",
+    "opUpdateDeletedB": "0192f0b0-0000-7000-8000-000000000008",
+    "opBindProject": "0192f0b0-0000-7000-8000-000000000011",
+    "opBindSpan": "0192f0b0-0000-7000-8000-000000000012",
+    "opBindTask": "0192f0b0-0000-7000-8000-000000000013",
+    "opBindNote": "0192f0b0-0000-7000-8000-000000000014",
+    "opOffline": "0192f0b0-0000-7000-8000-000000000021"
+  },
+  "entities": {
+    "project": {
+      "createdAt": "2026-11-15T05:00:00.000000Z",
+      "name": "产品官网改版",
+      "description": "信息架构与视觉重构",
+      "color": "#3E63DD",
+      "status": "active",
+      "sortOrder": 0
+    },
+    "span": {
+      "createdAt": "2026-11-15T05:01:00.000000Z",
+      "projectId": "0192f0a1-0000-7000-8000-000000000001",
+      "title": "信息架构评审",
+      "startDate": "2026-11-16",
+      "endDate": "2026-11-20",
+      "status": "doing",
+      "description": "",
+      "color": null,
+      "sortOrder": 0
+    },
+    "task": {
+      "createdAt": "2026-11-15T05:02:00.000000Z",
+      "projectId": "0192f0a1-0000-7000-8000-000000000001",
+      "spanId": null,
+      "title": "写同步协议",
+      "notes": "",
+      "scheduledDate": "2026-11-16",
+      "timeSlot": {
+        "startMinute": 540,
+        "durationMinutes": 90
+      },
+      "priority": "high",
+      "status": "todo",
+      "completedAt": null,
+      "sortOrder": 0
+    },
+    "taskEdited": {
+      "createdAt": "2026-11-15T05:02:00.000000Z",
+      "projectId": "0192f0a1-0000-7000-8000-000000000001",
+      "spanId": null,
+      "title": "写同步协议（修订）",
+      "notes": "补充冲突与游标",
+      "scheduledDate": "2026-11-16",
+      "timeSlot": {
+        "startMinute": 540,
+        "durationMinutes": 90
+      },
+      "priority": "high",
+      "status": "todo",
+      "completedAt": null,
+      "sortOrder": 0
+    },
+    "note": {
+      "createdAt": "2026-11-15T05:03:00.000000Z",
+      "date": "2026-11-15",
+      "body": "先完成首页转化路径梳理",
+      "focusItems": [
+        "首页转化路径",
+        "视觉稿走查"
+      ]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "TC-01",
+      "title": "新增任务",
+      "given": {
+        "serverHasProject": true,
+        "projectServerRevision": 1,
+        "projectCursor": "c1_0000000000000001"
+      },
+      "pushRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "clientVersion": "2.0.0",
+        "sentAt": "2026-11-15T06:00:00.000000Z",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000001",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "create",
+            "baseRevision": 0,
+            "clientRevision": 1,
+            "clientUpdatedAt": "2026-11-15T05:02:00.000000Z",
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "pushResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:00:01.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000001",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "status": "applied",
+            "noOp": false,
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000002",
+            "appliedAt": "2026-11-15T06:00:01.000000Z"
+          }
+        ]
+      },
+      "pullRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "mode": "incremental",
+        "cursor": "c1_0000000000000001",
+        "limit": 200
+      },
+      "pullResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:00:02.000000Z",
+        "mode": "incremental",
+        "snapshot": false,
+        "snapshotSeq": null,
+        "changes": [
+          {
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000002",
+            "deleted": false,
+            "deletedAt": null,
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            },
+            "serverUpdatedAt": "2026-11-15T06:00:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000001"
+          }
+        ],
+        "nextCursor": "c1_0000000000000002",
+        "hasMore": false,
+        "resetRequired": false
+      }
+    },
+    {
+      "id": "TC-02",
+      "title": "修改任务",
+      "given": {
+        "taskServerRevision": 1,
+        "taskCursor": "c1_0000000000000002"
+      },
+      "pushRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "clientVersion": "2.0.0",
+        "sentAt": "2026-11-15T06:01:00.000000Z",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000002",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "update",
+            "baseRevision": 1,
+            "clientRevision": 2,
+            "clientUpdatedAt": "2026-11-15T06:01:00.000000Z",
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议（修订）",
+              "notes": "补充冲突与游标",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "pushResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:01:01.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000002",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "status": "applied",
+            "noOp": false,
+            "serverRevision": 2,
+            "serverCursor": "c1_0000000000000003",
+            "appliedAt": "2026-11-15T06:01:01.000000Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "TC-03",
+      "title": "删除任务",
+      "given": {
+        "taskServerRevision": 2,
+        "taskCursor": "c1_0000000000000003"
+      },
+      "pushRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "clientVersion": "2.0.0",
+        "sentAt": "2026-11-15T06:02:00.000000Z",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000003",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "delete",
+            "baseRevision": 2,
+            "clientRevision": 3,
+            "clientUpdatedAt": "2026-11-15T06:02:00.000000Z"
+          }
+        ]
+      },
+      "pushResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:02:01.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000003",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "status": "applied",
+            "noOp": false,
+            "serverRevision": 3,
+            "serverCursor": "c1_0000000000000004",
+            "appliedAt": "2026-11-15T06:02:01.000000Z"
+          }
+        ]
+      },
+      "pullRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000b",
+        "mode": "incremental",
+        "cursor": "c1_0000000000000003",
+        "limit": 200
+      },
+      "pullResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:02:02.000000Z",
+        "mode": "incremental",
+        "snapshot": false,
+        "snapshotSeq": null,
+        "changes": [
+          {
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 3,
+            "serverCursor": "c1_0000000000000004",
+            "deleted": true,
+            "deletedAt": "2026-11-15T06:02:01.000000Z",
+            "payload": null,
+            "serverUpdatedAt": "2026-11-15T06:02:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000003"
+          }
+        ],
+        "nextCursor": "c1_0000000000000004",
+        "hasMore": false,
+        "resetRequired": false
+      }
+    },
+    {
+      "id": "TC-04",
+      "title": "重复发送同一个操作",
+      "given": {
+        "firstAttemptApplied": true,
+        "serverRevision": 1,
+        "serverCursor": "c1_0000000000000002"
+      },
+      "note": "重发必须使用与 TC-01 完全相同的 opId 与 payload。",
+      "pushRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "clientVersion": "2.0.0",
+        "sentAt": "2026-11-15T06:00:30.000000Z",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000001",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "create",
+            "baseRevision": 0,
+            "clientRevision": 1,
+            "clientUpdatedAt": "2026-11-15T05:02:00.000000Z",
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "pushResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:00:31.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000001",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "status": "duplicate",
+            "duplicateOf": "applied",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000002",
+            "appliedAt": "2026-11-15T06:00:01.000000Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "TC-05",
+      "title": "两设备修改同一任务",
+      "given": {
+        "taskServerRevision": 2,
+        "taskCursor": "c1_0000000000000003",
+        "bothDevicesPulledRevision": 2
+      },
+      "pushA": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000005",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "update",
+            "baseRevision": 2,
+            "clientRevision": 3,
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议（A 版）",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "pushAResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:03:00.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000005",
+            "status": "applied",
+            "serverRevision": 3,
+            "serverCursor": "c1_0000000000000005"
+          }
+        ]
+      },
+      "pushB": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000b",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000006",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "update",
+            "baseRevision": 2,
+            "clientRevision": 3,
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议（B 版）",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "pushBResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:03:01.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000006",
+            "status": "conflict",
+            "serverRevision": 3,
+            "serverCursor": "c1_0000000000000005",
+            "conflict": {
+              "kind": "UPDATE_UPDATE",
+              "serverRevision": 3,
+              "serverDeleted": false,
+              "serverPayload": {
+                "createdAt": "2026-11-15T05:02:00.000000Z",
+                "projectId": "0192f0a1-0000-7000-8000-000000000001",
+                "spanId": null,
+                "title": "写同步协议（A 版）",
+                "notes": "",
+                "scheduledDate": "2026-11-16",
+                "timeSlot": {
+                  "startMinute": 540,
+                  "durationMinutes": 90
+                },
+                "priority": "high",
+                "status": "todo",
+                "completedAt": null,
+                "sortOrder": 0
+              },
+              "serverUpdatedAt": "2026-11-15T06:03:00.000000Z",
+              "serverUpdatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+              "serverCursor": "c1_0000000000000005"
+            }
+          }
+        ]
+      },
+      "resolution": {
+        "keepServer": "本地改为 A 版，冲突清除",
+        "keepLocal": "以 baseRevision=3 重发 B 版，得到 serverRevision=4"
+      }
+    },
+    {
+      "id": "TC-06",
+      "title": "修改已被删除的任务",
+      "given": {
+        "taskServerRevision": 3,
+        "taskDeletedByA": true
+      },
+      "pushA": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000007",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "delete",
+            "baseRevision": 3,
+            "clientRevision": 4
+          }
+        ]
+      },
+      "pushAResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:04:00.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000007",
+            "status": "applied",
+            "serverRevision": 4,
+            "serverCursor": "c1_0000000000000006"
+          }
+        ]
+      },
+      "pushB": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000b",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000008",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "update",
+            "baseRevision": 3,
+            "clientRevision": 4,
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议（B 版，已删任务）",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "pushBResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:04:01.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000008",
+            "status": "conflict",
+            "serverRevision": 4,
+            "serverCursor": "c1_0000000000000006",
+            "conflict": {
+              "kind": "UPDATE_DELETE",
+              "serverRevision": 4,
+              "serverDeleted": true,
+              "serverPayload": null,
+              "serverUpdatedAt": "2026-11-15T06:04:00.000000Z",
+              "serverUpdatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+              "serverCursor": "c1_0000000000000006"
+            }
+          }
+        ]
+      },
+      "keepLocalCopy": {
+        "opId": "0192f0b0-0000-7000-8000-000000000009",
+        "entityType": "task",
+        "entityId": "0192f0a2-0000-7000-8000-000000000002",
+        "opType": "create",
+        "baseRevision": 0,
+        "payload": {
+          "createdAt": "2026-11-15T06:04:02.000000Z",
+          "projectId": "0192f0a1-0000-7000-8000-000000000001",
+          "spanId": null,
+          "title": "写同步协议（B 版，已删任务）",
+          "notes": "",
+          "scheduledDate": "2026-11-16",
+          "timeSlot": {
+            "startMinute": 540,
+            "durationMinutes": 90
+          },
+          "priority": "high",
+          "status": "todo",
+          "completedAt": null,
+          "sortOrder": 0
+        }
+      }
+    },
+    {
+      "id": "TC-07",
+      "title": "首次绑定包含既有本地数据的设备",
+      "given": {
+        "local": {
+          "project": 1,
+          "span": 1,
+          "task": 1,
+          "note": 1
+        },
+        "cloudRecords": 0,
+        "backupDone": true,
+        "bindingState": "pending"
+      },
+      "pushRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "clientVersion": "2.0.0",
+        "sentAt": "2026-11-15T06:10:00.000000Z",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000011",
+            "entityType": "project",
+            "entityId": "0192f0a1-0000-7000-8000-000000000001",
+            "opType": "create",
+            "baseRevision": 0,
+            "payload": {
+              "createdAt": "2026-11-15T05:00:00.000000Z",
+              "name": "产品官网改版",
+              "description": "信息架构与视觉重构",
+              "color": "#3E63DD",
+              "status": "active",
+              "sortOrder": 0
+            }
+          },
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000012",
+            "entityType": "span",
+            "entityId": "0192f0a1-0000-7000-8000-000000000002",
+            "opType": "create",
+            "baseRevision": 0,
+            "payload": {
+              "createdAt": "2026-11-15T05:01:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "title": "信息架构评审",
+              "startDate": "2026-11-16",
+              "endDate": "2026-11-20",
+              "status": "doing",
+              "description": "",
+              "color": null,
+              "sortOrder": 0
+            }
+          },
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000013",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "create",
+            "baseRevision": 0,
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          },
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000014",
+            "entityType": "note",
+            "entityId": "0192f0a3-0000-7000-8000-000000000001",
+            "opType": "create",
+            "baseRevision": 0,
+            "payload": {
+              "createdAt": "2026-11-15T05:03:00.000000Z",
+              "date": "2026-11-15",
+              "body": "先完成首页转化路径梳理",
+              "focusItems": [
+                "首页转化路径",
+                "视觉稿走查"
+              ]
+            }
+          }
+        ]
+      },
+      "pushResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:10:01.000000Z",
+        "results": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000011",
+            "entityType": "project",
+            "entityId": "0192f0a1-0000-7000-8000-000000000001",
+            "status": "applied",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000001"
+          },
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000012",
+            "entityType": "span",
+            "entityId": "0192f0a1-0000-7000-8000-000000000002",
+            "status": "applied",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000002"
+          },
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000013",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "status": "applied",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000003"
+          },
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000014",
+            "entityType": "note",
+            "entityId": "0192f0a3-0000-7000-8000-000000000001",
+            "status": "applied",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000004"
+          }
+        ]
+      },
+      "pullRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "mode": "snapshot",
+        "cursor": null,
+        "limit": 200
+      },
+      "pullResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:10:02.000000Z",
+        "mode": "snapshot",
+        "snapshot": true,
+        "snapshotSeq": 4,
+        "changes": [
+          {
+            "entityType": "project",
+            "entityId": "0192f0a1-0000-7000-8000-000000000001",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000001",
+            "deleted": false,
+            "deletedAt": null,
+            "payload": {
+              "createdAt": "2026-11-15T05:00:00.000000Z",
+              "name": "产品官网改版",
+              "description": "信息架构与视觉重构",
+              "color": "#3E63DD",
+              "status": "active",
+              "sortOrder": 0
+            },
+            "serverUpdatedAt": "2026-11-15T06:10:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000011"
+          },
+          {
+            "entityType": "span",
+            "entityId": "0192f0a1-0000-7000-8000-000000000002",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000002",
+            "deleted": false,
+            "deletedAt": null,
+            "payload": {
+              "createdAt": "2026-11-15T05:01:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "title": "信息架构评审",
+              "startDate": "2026-11-16",
+              "endDate": "2026-11-20",
+              "status": "doing",
+              "description": "",
+              "color": null,
+              "sortOrder": 0
+            },
+            "serverUpdatedAt": "2026-11-15T06:10:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000012"
+          },
+          {
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000003",
+            "deleted": false,
+            "deletedAt": null,
+            "payload": {
+              "createdAt": "2026-11-15T05:02:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "写同步协议",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": {
+                "startMinute": 540,
+                "durationMinutes": 90
+              },
+              "priority": "high",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            },
+            "serverUpdatedAt": "2026-11-15T06:10:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000013"
+          },
+          {
+            "entityType": "note",
+            "entityId": "0192f0a3-0000-7000-8000-000000000001",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000004",
+            "deleted": false,
+            "deletedAt": null,
+            "payload": {
+              "createdAt": "2026-11-15T05:03:00.000000Z",
+              "date": "2026-11-15",
+              "body": "先完成首页转化路径梳理",
+              "focusItems": [
+                "首页转化路径",
+                "视觉稿走查"
+              ]
+            },
+            "serverUpdatedAt": "2026-11-15T06:10:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000014"
+          }
+        ],
+        "nextCursor": "c1_0000000000000004",
+        "hasMore": false,
+        "resetRequired": false
+      }
+    },
+    {
+      "id": "TC-08",
+      "title": "断网后恢复同步",
+      "given": {
+        "firstAttempt": "request may or may not have reached the server",
+        "outboxState": "pending",
+        "network": "offline then online"
+      },
+      "firstAttempt": {
+        "result": "network error / timeout",
+        "clientAction": "keep opId and payload; schedule retry"
+      },
+      "retryRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "clientVersion": "2.0.0",
+        "sentAt": "2026-11-15T06:20:00.000000Z",
+        "ops": [
+          {
+            "opId": "0192f0b0-0000-7000-8000-000000000021",
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "opType": "create",
+            "baseRevision": 0,
+            "clientRevision": 1,
+            "clientUpdatedAt": "2026-11-15T06:19:00.000000Z",
+            "payload": {
+              "createdAt": "2026-11-15T06:19:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "断网恢复任务",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": null,
+              "priority": "normal",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            }
+          }
+        ]
+      },
+      "possibleResponses": [
+        {
+          "case": "first request reached server",
+          "body": {
+            "protocolVersion": 1,
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverTime": "2026-11-15T06:20:01.000000Z",
+            "results": [
+              {
+                "opId": "0192f0b0-0000-7000-8000-000000000021",
+                "status": "duplicate",
+                "duplicateOf": "applied",
+                "serverRevision": 1,
+                "serverCursor": "c1_0000000000000009"
+              }
+            ]
+          }
+        },
+        {
+          "case": "first request did not reach server",
+          "body": {
+            "protocolVersion": 1,
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverTime": "2026-11-15T06:20:01.000000Z",
+            "results": [
+              {
+                "opId": "0192f0b0-0000-7000-8000-000000000021",
+                "status": "applied",
+                "noOp": false,
+                "serverRevision": 1,
+                "serverCursor": "c1_0000000000000009"
+              }
+            ]
+          }
+        }
+      ],
+      "pullRequest": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "deviceId": "0192f0a0-0000-7000-8000-00000000000a",
+        "mode": "incremental",
+        "cursor": "c1_0000000000000008",
+        "limit": 200
+      },
+      "pullResponse": {
+        "protocolVersion": 1,
+        "schemaVersion": 1,
+        "ownerId": "usr_01j9owner0000000000000000",
+        "serverTime": "2026-11-15T06:20:02.000000Z",
+        "mode": "incremental",
+        "snapshot": false,
+        "snapshotSeq": null,
+        "changes": [
+          {
+            "entityType": "task",
+            "entityId": "0192f0a2-0000-7000-8000-000000000001",
+            "schemaVersion": 1,
+            "ownerId": "usr_01j9owner0000000000000000",
+            "serverRevision": 1,
+            "serverCursor": "c1_0000000000000009",
+            "deleted": false,
+            "deletedAt": null,
+            "payload": {
+              "createdAt": "2026-11-15T06:19:00.000000Z",
+              "projectId": "0192f0a1-0000-7000-8000-000000000001",
+              "spanId": null,
+              "title": "断网恢复任务",
+              "notes": "",
+              "scheduledDate": "2026-11-16",
+              "timeSlot": null,
+              "priority": "normal",
+              "status": "todo",
+              "completedAt": null,
+              "sortOrder": 0
+            },
+            "serverUpdatedAt": "2026-11-15T06:20:01.000000Z",
+            "updatedByDevice": "0192f0a0-0000-7000-8000-00000000000a",
+            "lastOpId": "0192f0b0-0000-7000-8000-000000000021"
+          }
+        ],
+        "nextCursor": "c1_0000000000000009",
+        "hasMore": false,
+        "resetRequired": false
+      }
+    }
+  ]
+}

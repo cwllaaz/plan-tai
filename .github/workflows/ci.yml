@@ -1,0 +1,52 @@
+name: CI · 代码检查
+
+# 只在需要时运行：主分支 push、PR、以及手动触发。
+# 权限最小化：只需要读代码。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.50.0
+  FLUTTER_URL: https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.50.0-stable.tar.xz
+  FLUTTER_SHA256: 6ea2d806fd57269ae783e6788e2a81fc26eaad782f1e0d0ff38623bb765ff9f5
+
+jobs:
+  analyze-and-test:
+    name: 静态分析 + 单元测试
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      # 官方 Actions 一律固定到 commit SHA，避免 tag 被移动带来的供应链风险。
+      - name: 检出代码
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # actions/checkout@v4
+
+      - name: 安装 Linux 构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            curl ca-certificates git unzip xz-utils \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev libsqlite3-dev liblzma-dev libsecret-1-dev
+
+      - name: 安装 Flutter（固定版本 + 校验 SHA-256）
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/flutter.tar.xz" "$FLUTTER_URL"
+          echo "${FLUTTER_SHA256}  $RUNNER_TEMP/flutter.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/flutter.tar.xz" -C "$HOME"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+          echo "$HOME/flutter/bin/cache/dart-sdk/bin" >> "$GITHUB_PATH"
+
+      - name: 解析依赖
+        run: flutter pub get
+
+      - name: 静态分析（必须零问题）
+        run: flutter analyze
+
+      - name: 单元测试
+        run: flutter test --reporter expanded

@@ -1,0 +1,73 @@
+name: jihuatai
+description: "计划台 — 日历式项目与时间管理系统（Flutter Windows 桌面端 + Android 移动端）"
+publish_to: 'none'
+version: 2.0.0+5
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Flutter 3.50 起 Material 组件迁移到独立包，统一从这里导入（不再用 flutter/material.dart）
+  material_ui: ^1.11.0
+  cupertino_icons: ^1.0.8
+
+  # 原生窗口：最小尺寸、启动居中、标题（后续自定义标题栏也走这里）
+  window_manager: ^0.7.0
+
+  # 本地数据层：SQLite via FFI
+  sqlite3: ^3.9.1
+  path: ^1.9.1
+  path_provider: ^2.1.6
+
+  # Android 安全令牌存储（Keystore/EncryptedSharedPreferences）。
+  # Windows 仍用自研 WindowsCredentialStore，不经此包。
+  # 注意：当前 Android bootstrap 尚未使用；该包的 Windows 实现会引入 ATL
+  # 依赖（atlstr.h），在没有 ATL 的构建机上会让 Windows 构建失败。
+  # 等 Android 令牌存储真正接入时再以平台隔离方式恢复。
+  # flutter_secure_storage: ^11.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # 真机/模拟器端到端验收：`flutter test integration_test -d <device>`
+  # （仅测试构建使用，不进入 release 产物；SDK 内置包，无新增第三方依赖）
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+# 构建期使用 Windows 自带的 winsqlite3.dll，避免 sqlite3 3.x 从 GitHub 下载预编译库
+# （部分网络环境下需预置缓存或改用 system 源）。
+#
+# Android 反过来：系统 libsqlite3.so 版本过旧（API 24 上缺 VACUUM INTO、窗口函数等），
+# 且应用无法稳定 dlopen 它，因此 Android 使用 sqlite3 包自带的预编译 .so，
+# 由 Flutter native assets 打进 APK。首次 Android 构建会从 GitHub Releases 下载
+# 对应 ABI 的库（首次构建需要访问 GitHub Releases）。
+# Linux（Ubuntu 移植，阶段 1）：同样使用系统 libsqlite3.so，避免构建期访问
+# GitHub Releases（国内网络常见超时）。Ubuntu 22.04/24.04 自带 SQLite 3.37/3.45，
+# 满足本项目对 VACUUM INTO（3.27+）与窗口函数（3.25+）的要求；
+# 运行期依赖包：libsqlite3-0（提供 libsqlite3.so.0），构建机/开发机需 libsqlite3-dev
+# 提供 dlopen 用的 libsqlite3.so 符号链接。Android 仍走 sqlite3 包自带预编译库。
+hooks:
+  user_defines:
+    sqlite3:
+      source:
+        windows: system
+        linux: system
+        default: sqlite3
+      name:
+        windows: winsqlite3
+        default: sqlite3
+
+dependency_overrides:
+  # path_provider_android 2.3.x 在 Flutter 3.50 Android release(AOT) 下会因 JNI 过早初始化
+  # 崩溃（logcat: 'JNI is not initialized ... during Dart plugin class registration'），
+  # debug 包却正常。2.2.23 仍走 MethodChannel、无 jni 依赖，release 可正常启动；Windows 不受影响。
+  path_provider_android: 2.2.23

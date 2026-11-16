@@ -1,0 +1,15 @@
+{
+  "name": "timeflow",
+  "private": true,
+  "version": "1.0.0",
+  "description": "时序 TimeFlow — 日历式项目与时间管理系统",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.mjs",
+    "seed": "node --disable-warning=ExperimentalWarning server/seed.mjs",
+    "test": "node --test tests/"
+  }
+}
