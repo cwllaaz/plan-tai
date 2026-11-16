@@ -227,7 +227,7 @@ A：`PlanTai` 是对外名称；`jihuatai` 是项目内部的稳定标识（Andr
 ## 10. 更新记录与许可证
 
 - 版本变更见 [CHANGELOG.md](CHANGELOG.md)。
-- 许可证：见 [LICENSE](LICENSE)（发布前由项目作者确认最终协议）。
+- 许可证：本项目采用 [MIT License](LICENSE)。
 - 第三方依赖均为宽松许可证（MIT / BSD-3-Clause / Apache-2.0）；Flutter 与 Material 图标遵循各自协议。
   分发二进制时请保留 `NOTICES` 文件（构建产物 `data/flutter_assets/NOTICES.Z` 内已包含）。
 

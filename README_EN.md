@@ -106,6 +106,6 @@ There is no official hosted sync service; without signing in the app is fully of
 
 ## License
 
-See [LICENSE](LICENSE). Third-party dependencies are permissively licensed
+This project is licensed under the [MIT License](LICENSE). Third-party dependencies are permissively licensed
 (MIT / BSD-3-Clause / Apache-2.0); Flutter and the Material icon font keep their own
 licenses (see the `NOTICES` file bundled with each build).
