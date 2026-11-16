@@ -60,8 +60,11 @@ abstract final class AppPaths {
     if (trimmed.isEmpty) return true;
     final normalized = p.normalize(trimmed);
     if (normalized.isEmpty || normalized == '.') return true;
-    final segments = p
-        .split(normalized)
+    // 同时按 Windows 反斜杠与 POSIX 斜杠切分：该判断需要在任意平台上
+    // 对任意平台的路径串给出稳定结果（测试会喂 Windows 路径给 Linux 运行）。
+    final segments = normalized
+        .split(RegExp(r'[\\/]+'))
+        .where((segment) => segment.isNotEmpty)
         .map((segment) => segment.toLowerCase())
         .toList(growable: false);
     const ephemeralSegments = <String>{
