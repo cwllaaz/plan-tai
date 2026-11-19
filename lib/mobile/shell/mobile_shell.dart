@@ -50,6 +50,7 @@ class _MobileShellState extends State<MobileShell> {
 
   void _selectTab(MobileTab tab) {
     if (_tab == tab) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _tab = tab);
     switch (tab) {
       case MobileTab.calendar:
@@ -101,9 +102,10 @@ class _MobileShellState extends State<MobileShell> {
   Widget _buildShell(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final safeInsets = MediaQuery.viewPaddingOf(context);
         final layout = mobileLayoutFor(
-          constraints.maxWidth,
-          availableHeight: constraints.maxHeight,
+          constraints.maxWidth - safeInsets.horizontal,
+          availableHeight: constraints.maxHeight - safeInsets.vertical,
         );
         final pages = <Widget>[
           MobileCalendarPage(
@@ -127,31 +129,26 @@ class _MobileShellState extends State<MobileShell> {
 
         final content = IndexedStack(index: _tab.index, children: pages);
 
-        final Widget body;
-        switch (layout) {
-          case MobileLayout.compact:
-            body = content;
-          case MobileLayout.medium:
-            body = Row(
-              children: <Widget>[
-                MobileNavRail(current: _tab, onSelect: _selectTab),
-                Expanded(child: content),
-              ],
-            );
-          case MobileLayout.expanded:
-            body = Row(
-              children: <Widget>[
-                MobileProjectNav(
-                  repository: widget.repository,
-                  shell: widget.shell,
-                  current: _tab,
-                  onSelect: _selectTab,
-                  onOpenProject: _openProject,
-                ),
-                Expanded(child: content),
-              ],
-            );
-        }
+        // Keep the page stack mounted when the navigation changes form.
+        final body = Row(
+          children: <Widget>[
+            switch (layout) {
+              MobileLayout.compact => const SizedBox.shrink(),
+              MobileLayout.medium => MobileNavRail(
+                current: _tab,
+                onSelect: _selectTab,
+              ),
+              MobileLayout.expanded => MobileProjectNav(
+                repository: widget.repository,
+                shell: widget.shell,
+                current: _tab,
+                onSelect: _selectTab,
+                onOpenProject: _openProject,
+              ),
+            },
+            Expanded(child: content),
+          ],
+        );
 
         return PopScope(
           canPop: _tab == MobileTab.calendar,
@@ -160,6 +157,8 @@ class _MobileShellState extends State<MobileShell> {
             _handleBackIntent();
           },
           child: Scaffold(
+            // 弹层自行避让键盘，底下的月历和任务列表保持原滚动位置。
+            resizeToAvoidBottomInset: ModalRoute.isCurrentOf(context) ?? true,
             backgroundColor: AppColors.canvas,
             body: SafeArea(bottom: layout != MobileLayout.compact, child: body),
             bottomNavigationBar: layout == MobileLayout.compact

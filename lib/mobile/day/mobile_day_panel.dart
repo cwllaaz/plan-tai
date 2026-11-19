@@ -63,6 +63,9 @@ class MobileDayPanel extends StatefulWidget {
     this.showHeaderDivider = true,
     this.showNote = true,
     this.showAddButton = true,
+    this.addInHeader = false,
+    this.leading,
+    this.keepNoteOnResize = false,
   });
 
   final PlannerRepository repository;
@@ -84,6 +87,11 @@ class MobileDayPanel extends StatefulWidget {
   final bool showNote;
 
   final bool showAddButton;
+  final bool addInHeader;
+
+  /// 矮窗口中与当日事项共用滚动区的月历。
+  final Widget? leading;
+  final bool keepNoteOnResize;
 
   @override
   State<MobileDayPanel> createState() => _MobileDayPanelState();
@@ -92,6 +100,8 @@ class MobileDayPanel extends StatefulWidget {
 class _MobileDayPanelState extends State<MobileDayPanel> {
   final List<StreamSubscription<Object?>> _subscriptions =
       <StreamSubscription<Object?>>[];
+
+  bool _keepNoteVisible = false;
 
   List<PlannerTask> _tasks = const <PlannerTask>[];
   List<PlanSpan> _spans = const <PlanSpan>[];
@@ -108,6 +118,9 @@ class _MobileDayPanelState extends State<MobileDayPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository ||
         oldWidget.date != widget.date) {
+      _keepNoteVisible = false;
+      _tasks = const <PlannerTask>[];
+      _spans = const <PlanSpan>[];
       _cancel();
       _listen();
     }
@@ -178,45 +191,84 @@ class _MobileDayPanelState extends State<MobileDayPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        MobileDayHeader(
-          date: widget.date,
-          today: widget.today,
-          tasks: _tasks,
-          onClose: widget.onClose,
-          onOpenFullDay: widget.onOpenFullDay,
-          onPrevious: widget.onDateChange == null ? null : () => _shiftDay(-1),
-          onNext: widget.onDateChange == null ? null : () => _shiftDay(1),
-          showDivider: widget.showHeaderDivider,
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-            children: <Widget>[
-              if (_spans.isNotEmpty) _buildSpans(),
-              MobileTaskList(
-                repository: widget.repository,
-                tasks: _tasks,
-                projects: _projectsById,
-                today: widget.today,
-                onEditTask: _openEditor,
-                onAddTask: _createTask,
-                showAddButton: widget.showAddButton,
-              ),
-              if (widget.showNote) ...<Widget>[
-                const Divider(height: 1),
-                MobileNoteEditor(
-                  key: ValueKey<String>('mobile-note-${widget.date.iso}'),
-                  repository: widget.repository,
-                  date: widget.date,
+    final header = MobileDayHeader(
+      date: widget.date,
+      today: widget.today,
+      tasks: _tasks,
+      onClose: widget.onClose,
+      onOpenFullDay: widget.onOpenFullDay,
+      onAdd: widget.addInHeader && widget.showAddButton ? _createTask : null,
+      onPrevious: widget.onDateChange == null ? null : () => _shiftDay(-1),
+      onNext: widget.onDateChange == null ? null : () => _shiftDay(1),
+      showDivider: widget.showHeaderDivider,
+    );
+
+    // 横屏键盘可能只剩几十 dp，把日期头也放入滚动区，保住备注视口。
+    final imeVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final panel = LayoutBuilder(
+      builder: (context, bounds) {
+        final scrollHeader = widget.leading != null || bounds.maxHeight < 168;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!scrollHeader) header else const SizedBox.shrink(),
+            Expanded(
+              // 任务区本身是 Column。让备注也一直参与布局，窗口缩窄时
+              // 键盘的光标定位才能找到仍在编辑的输入框。
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.leading case final leading?) ...[
+                      leading,
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    if (scrollHeader) header,
+                    if (_spans.isNotEmpty) _buildSpans(),
+                    MobileTaskList(
+                      repository: widget.repository,
+                      tasks: _tasks,
+                      projects: _projectsById,
+                      today: widget.today,
+                      onEditTask: _openEditor,
+                      onAddTask: _createTask,
+                      showAddButton:
+                          widget.showAddButton && !widget.addInHeader,
+                      compactEmpty: widget.addInHeader,
+                    ),
+                    if (widget.showNote || _keepNoteVisible) ...[
+                      const Divider(height: 1),
+                      MobileNoteEditor(
+                        key: ValueKey((widget.repository, widget.date)),
+                        repository: widget.repository,
+                        date: widget.date,
+                        onEditing: widget.keepNoteOnResize
+                            ? () {
+                                if (!_keepNoteVisible) {
+                                  setState(() => _keepNoteVisible = true);
+                                }
+                              }
+                            : null,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
-          ),
-        ),
-      ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    if (widget.onClose == null) return panel;
+    return PopScope<void>(
+      canPop: !imeVisible,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && imeVisible) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+      },
+      child: panel,
     );
   }
 
@@ -235,6 +287,7 @@ class _MobileDayPanelState extends State<MobileDayPanel> {
           for (final span in _spans)
             MobileTag(
               label: '安排 · ${span.title}',
+              maxLines: null,
               color: Color.alphaBlend(
                 MobilePalette.spanInk(
                   spanColorOf(span, _projectsById[span.projectId]),
@@ -260,6 +313,7 @@ class MobileDayHeader extends StatelessWidget {
     this.onPrevious,
     this.onNext,
     this.onOpenFullDay,
+    this.onAdd,
     this.showDivider = true,
   });
 
@@ -270,6 +324,7 @@ class MobileDayHeader extends StatelessWidget {
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final VoidCallback? onOpenFullDay;
+  final VoidCallback? onAdd;
   final bool showDivider;
 
   @override
@@ -306,38 +361,25 @@ class MobileDayHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Flexible(
-                          child: Text(
-                            monthDay(date),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.h1.copyWith(fontSize: 19),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          weekdayShort(date),
-                          style: AppText.small.copyWith(
-                            fontSize: 12.5,
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                        if (isToday) ...<Widget>[
-                          const SizedBox(width: AppSpacing.xs + 2),
-                          const MobileTag(label: '今天', color: AppColors.accent),
-                        ],
-                      ],
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${monthDay(date)} ${weekdayShort(date)}',
+                        maxLines: 1,
+                        style: AppText.h1.copyWith(fontSize: 17),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      stats.total == 0
-                          ? '还没有任务'
-                          : '${stats.total} 项任务 · 完成 ${stats.done} 项',
+                      '${isToday ? '今天 · ' : ''}${stats.total} 项任务 · 完成 ${stats.done} 项',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.caption.copyWith(fontSize: 12),
+                      style: AppText.caption.copyWith(
+                        color: isToday
+                            ? AppColors.accent
+                            : AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -352,9 +394,16 @@ class MobileDayHeader extends StatelessWidget {
               if (onOpenFullDay != null)
                 MobileTextButton(
                   key: const ValueKey<String>('mobile-day-expand'),
-                  label: '展开',
-                  icon: Icons.open_in_full_rounded,
+                  label: '详情',
                   onPressed: onOpenFullDay,
+                ),
+              if (onAdd != null)
+                MobileIconButton(
+                  key: const ValueKey<String>('mobile-add-task'),
+                  icon: Icons.add_rounded,
+                  tooltip: '新建任务',
+                  active: true,
+                  onPressed: onAdd,
                 ),
               if (onClose != null)
                 MobileIconButton(
@@ -365,7 +414,7 @@ class MobileDayHeader extends StatelessWidget {
                 ),
             ],
           ),
-          if (stats.total > 0) ...<Widget>[
+          if (showDivider && stats.total > 0) ...<Widget>[
             const SizedBox(height: AppSpacing.xs + 2),
             CompletionBar(done: stats.done, total: stats.total),
           ],

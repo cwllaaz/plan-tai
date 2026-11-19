@@ -71,7 +71,7 @@ class MobileTaskRow extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.bodyStrong.copyWith(
-                          fontSize: 14,
+                          fontSize: 15,
                           height: 1.35,
                           color: done
                               ? AppColors.textTertiary
@@ -114,8 +114,8 @@ class MobileTaskRow extends StatelessWidget {
             Text(
               task.timeSlot!.label,
               style: AppText.numeric.copyWith(
-                fontSize: 11.5,
-                color: AppColors.textTertiary,
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -139,7 +139,14 @@ class MobileTaskRow extends StatelessWidget {
           children: <Widget>[
             ProjectColorDot(color: project.color, size: 8),
             const SizedBox(width: 4),
-            Text(project.name, style: AppText.micro.copyWith(fontSize: 11.5)),
+            Flexible(
+              child: Text(
+                project.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption,
+              ),
+            ),
           ],
         ),
       );

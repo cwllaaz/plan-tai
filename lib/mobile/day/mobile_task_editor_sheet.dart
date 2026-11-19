@@ -33,7 +33,7 @@ final class MobileTaskEditResult {
 ///   固定时间必须成对且结束晚于开始、优先级默认「普通」；
 /// - 写库在面板内部完成（`createTask` / `updateTask` / `deleteTask`），
 ///   成功后自动关闭，失败保留面板并就地显示错误；
-/// - 有未保存改动时，返回键/下滑关闭会二次确认，不会丢草稿。
+/// - 系统返回先收起键盘；放弃未保存的修改需要确认。
 Future<MobileTaskEditResult> showMobileTaskEditorSheet(
   BuildContext context, {
   required PlannerRepository repository,
@@ -97,7 +97,11 @@ class _MobileTaskEditorSheetState extends State<_MobileTaskEditorSheet> {
   bool _saving = false;
   String? _titleError;
   String? _formError;
-  bool _allowPop = false;
+  String? _timeError;
+  bool _confirmingClose = false;
+  final _titleAnchor = GlobalKey();
+  final _timeErrorAnchor = GlobalKey();
+  final _formErrorAnchor = GlobalKey();
 
   bool get _isEditing => widget.initial != null;
 
@@ -211,52 +215,77 @@ class _MobileTaskEditorSheetState extends State<_MobileTaskEditorSheet> {
       if (_endMinute <= start) {
         _endMinute = (start + 30).clamp(start + 1, 1440).toInt();
       }
-      _formError = null;
+      _timeError = null;
     });
   }
 
   Future<void> _pickEnd() async {
+    // TimeSlot 支持 24:00，系统时间选择器的小时范围是 0–23。
+    final pickerMinute = _endMinute.clamp(0, 1439);
     final picked = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay(hour: _endMinute ~/ 60, minute: _endMinute % 60),
+      initialTime: TimeOfDay(
+        hour: pickerMinute ~/ 60,
+        minute: pickerMinute % 60,
+      ),
       helpText: '结束时间',
       cancelText: '取消',
       confirmText: '确定',
     );
     if (picked == null || !mounted) return;
     final end = picked.hour * 60 + picked.minute;
-    if (end <= _startMinute) {
-      setState(() => _formError = '结束时间必须晚于开始时间');
-      return;
-    }
     setState(() {
       _endMinute = end;
-      _formError = null;
+      _timeError = null;
     });
+    if (end <= _startMinute) _showTimeError();
   }
 
   void _toggleTime(bool enabled) {
     setState(() {
       _hasTime = enabled;
-      _formError = null;
+      _timeError = null;
     });
   }
 
   Future<void> _requestClose() async {
-    if (_saving) return;
-    if (!_dirty) {
-      Navigator.of(context).pop(const MobileTaskEditResult.cancelled());
-      return;
+    if (_saving || _confirmingClose) return;
+    FocusScope.of(context).unfocus();
+    if (_dirty) {
+      _confirmingClose = true;
+      final discard = await showMobileConfirm(
+        context,
+        title: '放弃这次编辑？',
+        message: '当前修改还没有保存，返回后会丢失。',
+        confirmLabel: '放弃',
+        danger: true,
+      );
+      _confirmingClose = false;
+      if (!discard || !mounted) return;
     }
-    final discard = await showMobileConfirm(
-      context,
-      title: '放弃这次编辑？',
-      message: '当前修改还没有保存，返回后会丢失。',
-      confirmLabel: '放弃',
-      danger: true,
-    );
-    if (!discard || !mounted) return;
     Navigator.of(context).pop(const MobileTaskEditResult.cancelled());
+  }
+
+  void _reveal(GlobalKey anchor) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = anchor.currentContext;
+      if (mounted && target != null) {
+        unawaited(Scrollable.ensureVisible(target));
+      }
+    });
+  }
+
+  void _showTimeError() {
+    setState(() => _timeError = '结束时间必须晚于开始时间');
+    _reveal(_timeErrorAnchor);
+  }
+
+  void _showFormError(String message) {
+    setState(() {
+      _saving = false;
+      _formError = message;
+    });
+    _reveal(_formErrorAnchor);
   }
 
   Future<void> _submit() async {
@@ -264,6 +293,7 @@ class _MobileTaskEditorSheetState extends State<_MobileTaskEditorSheet> {
     final title = _title.text.trim();
     if (title.isEmpty) {
       setState(() => _titleError = '请填写任务标题');
+      _reveal(_titleAnchor);
       return;
     }
     if (_hasTime && _endMinute <= _startMinute) {
@@ -308,16 +338,10 @@ class _MobileTaskEditorSheetState extends State<_MobileTaskEditorSheet> {
       Navigator.of(context).pop(const MobileTaskEditResult.saved());
     } on PlannerException catch (error) {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _formError = error.message;
-      });
-    } on Object catch (error) {
+      _showFormError(error.message);
+    } on Object {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _formError = '保存失败，请稍后重试（$error）';
-      });
+      _showFormError('保存失败，请稍后重试');
     }
   }
 
@@ -345,205 +369,243 @@ class _MobileTaskEditorSheetState extends State<_MobileTaskEditorSheet> {
       });
     } on Object {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _formError = '删除失败，请稍后重试';
-      });
+      _showFormError('删除失败，请稍后重试');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _allowPop || !_dirty,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
-        unawaited(_confirmDiscardOnPop());
-      },
-      child: Column(
-        children: <Widget>[
-          MobileSheetHeader(
-            title: _isEditing ? '编辑任务' : '新建任务',
-            subtitle: '${monthDayWithWeekday(_date)} · ${weekdayLong(_date)}',
-            onClose: _requestClose,
-          ),
-          Expanded(
-            child: MobileSheetBody(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.xxl,
-              ),
+    final imeVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final header = Material(
+      color: AppColors.surface,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        child: Row(
+          children: [
+            MobileTextButton(
+              key: const ValueKey<String>('mobile-task-editor-cancel'),
+              label: '取消',
+              onPressed: _saving ? null : _requestClose,
+            ),
+            Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  TextField(
-                    key: const ValueKey<String>('mobile-task-editor-title'),
-                    controller: _title,
-                    autofocus: !_isEditing,
-                    textInputAction: TextInputAction.done,
-                    maxLength: 200,
-                    buildCounter: _noCounter,
-                    style: AppText.bodyStrong.copyWith(
-                      fontSize: 16,
-                      height: 1.35,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '要做什么？',
-                      errorText: _titleError,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.md,
-                      ),
-                    ),
-                    onChanged: (_) {
-                      if (_titleError != null) {
-                        setState(() => _titleError = null);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _FieldGroup(
-                    children: <Widget>[
-                      MobileFormField(
-                        key: const ValueKey<String>('mobile-task-editor-date'),
-                        label: '日期',
-                        value: mobileDayLabel(_date, widget.today),
-                        icon: Icons.calendar_today_outlined,
-                        onTap: _pickDate,
-                      ),
-                      const Divider(height: 1),
-                      MobileFormField(
-                        key: const ValueKey<String>(
-                          'mobile-task-editor-project',
-                        ),
-                        label: '项目',
-                        value: _projectLabel,
-                        icon: Icons.folder_outlined,
-                        onTap: _pickProject,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _FieldGroup(
-                    children: <Widget>[
-                      MobileSwitchRow(
-                        key: const ValueKey<String>(
-                          'mobile-task-editor-timeswitch',
-                        ),
-                        title: '固定时间',
-                        subtitle: _hasTime
-                            ? '${_formatMinute(_startMinute)} – ${_formatMinute(_endMinute)}'
-                            : '不排具体时间，当天完成即可',
-                        value: _hasTime,
-                        onChanged: _toggleTime,
-                      ),
-                      if (_hasTime) ...<Widget>[
-                        const Divider(height: 1),
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: MobileTimeRangeField(
-                            startLabel: _formatMinute(_startMinute),
-                            endLabel: _formatMinute(_endMinute),
-                            onPickStart: _pickStart,
-                            onPickEnd: _pickEnd,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    '优先级',
-                    style: AppText.caption.copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    _isEditing ? '编辑任务' : '新建任务',
+                    style: AppText.h2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _PrioritySelector(
-                    value: _priority,
-                    onChanged: (TaskPriority priority) =>
-                        setState(() => _priority = priority),
+                  Text(
+                    monthDayWithWeekday(_date),
+                    style: AppText.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  TextField(
-                    key: const ValueKey<String>('mobile-task-editor-notes'),
-                    controller: _notes,
-                    minLines: 2,
-                    maxLines: 5,
-                    maxLength: 5000,
-                    buildCounter: _noCounter,
-                    style: AppText.small.copyWith(
-                      fontSize: 13.5,
-                      color: AppColors.textSecondary,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: '补充说明（可选）',
-                      contentPadding: EdgeInsets.all(AppSpacing.md),
-                    ),
-                  ),
-                  if (_formError != null) ...<Widget>[
-                    const SizedBox(height: AppSpacing.sm),
-                    MobileFormError(message: _formError!),
-                  ],
                 ],
               ),
             ),
-          ),
-          MobileSheetFooter(
-            children: <Widget>[
-              if (_isEditing)
-                TextButton(
-                  key: const ValueKey<String>('mobile-task-editor-delete'),
-                  onPressed: _saving ? null : _delete,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
-                    minimumSize: const Size(0, MobileMetrics.minTapTarget),
-                  ),
-                  child: Text(
-                    '删除',
-                    style: AppText.bodyStrong.copyWith(
-                      fontSize: 14,
-                      color: AppColors.danger,
-                    ),
-                  ),
-                ),
-              const Spacer(),
-              MobileSecondaryButton(
-                key: const ValueKey<String>('mobile-task-editor-cancel'),
-                label: '取消',
-                onPressed: _saving ? null : _requestClose,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              MobilePrimaryButton(
-                key: const ValueKey<String>('mobile-task-editor-save'),
-                label: '保存',
-                loading: _saving,
-                onPressed: _submit,
-              ),
-            ],
-          ),
-        ],
+            MobileTextButton(
+              key: const ValueKey<String>('mobile-task-editor-save'),
+              label: _saving ? '保存中…' : '保存',
+              onPressed: _saving ? null : _submit,
+            ),
+          ],
+        ),
       ),
     );
-  }
+    return PopScope<MobileTaskEditResult>(
+      canPop: !imeVisible && !_dirty && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (imeVisible) {
+          FocusScope.of(context).unfocus();
+        } else {
+          unawaited(_requestClose());
+        }
+      },
+      child: LayoutBuilder(
+        builder: (context, bounds) {
+          final scrollHeader = bounds.maxHeight < 132;
+          return Column(
+            children: [
+              if (!scrollHeader) header else const SizedBox.shrink(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (scrollHeader) header,
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            KeyedSubtree(
+                              key: _titleAnchor,
+                              child: TextField(
+                                key: const ValueKey<String>(
+                                  'mobile-task-editor-title',
+                                ),
+                                controller: _title,
+                                autofocus: !_isEditing,
+                                textInputAction: TextInputAction.done,
+                                minLines: 1,
+                                maxLines: 2,
+                                maxLength: 200,
+                                buildCounter: _noCounter,
+                                style: AppText.bodyStrong.copyWith(
+                                  fontSize: 16,
+                                  height: 1.35,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: '要做什么？',
+                                  errorText: _titleError,
+                                  errorMaxLines: 2,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                    vertical: AppSpacing.md,
+                                  ),
+                                ),
+                                onChanged: (_) =>
+                                    setState(() => _titleError = null),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _FieldGroup(
+                              children: <Widget>[
+                                MobileFormField(
+                                  key: const ValueKey<String>(
+                                    'mobile-task-editor-date',
+                                  ),
+                                  label: '日期',
+                                  value: mobileDayLabel(_date, widget.today),
+                                  icon: Icons.calendar_today_outlined,
+                                  onTap: _pickDate,
+                                ),
+                                const Divider(height: 1),
+                                MobileFormField(
+                                  key: const ValueKey<String>(
+                                    'mobile-task-editor-project',
+                                  ),
+                                  label: '项目',
+                                  value: _projectLabel,
+                                  icon: Icons.folder_outlined,
+                                  onTap: _pickProject,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _FieldGroup(
+                              children: <Widget>[
+                                MobileSwitchRow(
+                                  key: const ValueKey<String>(
+                                    'mobile-task-editor-timeswitch',
+                                  ),
+                                  title: '固定时间',
+                                  subtitle: _hasTime
+                                      ? '${_formatMinute(_startMinute)} – ${_formatMinute(_endMinute)}'
+                                      : '不排具体时间，当天完成即可',
+                                  value: _hasTime,
+                                  onChanged: _toggleTime,
+                                ),
+                                if (_hasTime) ...<Widget>[
+                                  const Divider(height: 1),
+                                  Padding(
+                                    padding: const EdgeInsets.all(
+                                      AppSpacing.md,
+                                    ),
+                                    child: MobileTimeRangeField(
+                                      startLabel: _formatMinute(_startMinute),
+                                      endLabel: _formatMinute(_endMinute),
+                                      onPickStart: _pickStart,
+                                      onPickEnd: _pickEnd,
+                                    ),
+                                  ),
+                                  if (_timeError != null)
+                                    Padding(
+                                      key: _timeErrorAnchor,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppSpacing.md,
+                                        0,
+                                        AppSpacing.md,
+                                        AppSpacing.sm,
+                                      ),
+                                      child: MobileFormError(
+                                        message: _timeError!,
+                                      ),
+                                    ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Text(
+                              '优先级',
+                              style: AppText.caption.copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _PrioritySelector(
+                              value: _priority,
+                              onChanged: (TaskPriority priority) =>
+                                  setState(() => _priority = priority),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            TextField(
+                              key: const ValueKey<String>(
+                                'mobile-task-editor-notes',
+                              ),
+                              controller: _notes,
+                              onChanged: (_) => setState(() {}),
+                              minLines: 2,
+                              maxLines: 5,
+                              maxLength: 5000,
+                              buildCounter: _noCounter,
+                              style: AppText.small.copyWith(
+                                fontSize: 13.5,
+                                color: AppColors.textSecondary,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: '补充说明（可选）',
+                                contentPadding: EdgeInsets.all(AppSpacing.md),
+                              ),
+                            ),
+                            if (_formError != null) ...<Widget>[
+                              const SizedBox(height: AppSpacing.sm),
+                              MobileFormError(
+                                key: _formErrorAnchor,
+                                message: _formError!,
+                              ),
+                            ],
 
-  Future<void> _confirmDiscardOnPop() async {
-    final discard = await showMobileConfirm(
-      context,
-      title: '放弃这次编辑？',
-      message: '当前修改还没有保存，返回后会丢失。',
-      confirmLabel: '放弃',
-      danger: true,
+                            if (_isEditing)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: MobileTextButton(
+                                  key: const ValueKey<String>(
+                                    'mobile-task-editor-delete',
+                                  ),
+                                  label: '删除任务',
+                                  danger: true,
+                                  onPressed: _saving ? null : _delete,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
-    if (!discard || !mounted) return;
-    setState(() => _allowPop = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pop(const MobileTaskEditResult.cancelled());
-    });
   }
 
   static Widget? _noCounter(

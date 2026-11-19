@@ -98,6 +98,7 @@ void main() {
     await ensureVisible(tester, find.byKey(MobileCloudKeys.downloadNow));
     await tester.tap(find.byKey(MobileCloudKeys.downloadNow));
     await tester.pumpAndSettle();
+    expect(find.textContaining('仅本机存在、云端没有的记录也会被移除'), findsOneWidget);
     await tester.tap(find.byKey(MobileCloudKeys.downloadForce));
     await tester.pumpAndSettle();
 

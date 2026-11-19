@@ -6,8 +6,7 @@ import 'day_detail_math.dart';
 
 /// 时间轴上的单条任务。
 ///
-/// 桌面端信息密度优先：时间列、项目色竖条、标题、项目/优先级/重叠标记、备注摘要，
-/// 高度控制在 44–64 之间；hover 才出现编辑/删除，避免视觉噪音。
+/// 标题优先，时间单独成列；项目和备注可悬停读全，编辑始终可见。
 class TaskTile extends StatefulWidget {
   const TaskTile({
     super.key,
@@ -93,8 +92,10 @@ class _TaskTileState extends State<TaskTile> {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs + 2),
-              _TimeColumn(task: task, done: done),
-              const SizedBox(width: AppSpacing.sm),
+              if (task.timeSlot != null) ...<Widget>[
+                _TimeColumn(task: task, done: done),
+                const SizedBox(width: AppSpacing.sm),
+              ],
               Container(
                 width: 2.5,
                 height: 34,
@@ -112,21 +113,21 @@ class _TaskTileState extends State<TaskTile> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(
-                        task.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(
-                          fontSize: 13,
-                          height: 1.35,
-                          fontWeight: FontWeight.w500,
-                          color: done
-                              ? AppColors.textTertiary
-                              : AppColors.textPrimary,
-                          decoration: done
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                          decorationColor: AppColors.textTertiary,
+                      Tooltip(
+                        message: task.title,
+                        child: Text(
+                          task.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.bodyStrong.copyWith(
+                            height: 1.35,
+                            color: done
+                                ? AppColors.textSecondary
+                                : AppColors.textPrimary,
+                            decoration: done
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -143,14 +144,16 @@ class _TaskTileState extends State<TaskTile> {
                       ),
                       if (task.notes.trim().isNotEmpty) ...<Widget>[
                         const SizedBox(height: 3),
-                        Text(
-                          task.notes,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.micro.copyWith(
-                            fontSize: 11,
-                            color: AppColors.textTertiary,
-                            height: 1.4,
+                        Tooltip(
+                          message: task.notes,
+                          child: Text(
+                            task.notes,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
@@ -159,28 +162,25 @@ class _TaskTileState extends State<TaskTile> {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
-              SizedBox(
-                width: 40,
-                height: 22,
-                child: _hovered
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: <Widget>[
-                          _MiniIconButton(
-                            key: ValueKey<String>('task-edit-${task.id}'),
-                            icon: Icons.edit_outlined,
-                            tooltip: '编辑任务',
-                            onTap: widget.onEdit,
-                          ),
-                          _MiniIconButton(
-                            key: ValueKey<String>('task-delete-${task.id}'),
-                            icon: Icons.delete_outline_rounded,
-                            tooltip: '删除任务',
-                            onTap: widget.onDelete,
-                          ),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _MiniIconButton(
+                    key: ValueKey<String>('task-edit-${task.id}'),
+                    icon: Icons.edit_outlined,
+                    tooltip: '编辑任务',
+                    onTap: widget.onEdit,
+                  ),
+                  if (_hovered)
+                    _MiniIconButton(
+                      key: ValueKey<String>('task-delete-${task.id}'),
+                      icon: Icons.delete_outline_rounded,
+                      tooltip: '删除任务',
+                      onTap: widget.onDelete,
+                    )
+                  else
+                    const SizedBox(width: _MiniIconButton.extent),
+                ],
               ),
             ],
           ),
@@ -219,8 +219,8 @@ class _TimeColumn extends StatelessWidget {
           Text(
             slot.endLabel,
             style: AppText.numeric.copyWith(
-              fontSize: 10,
-              color: AppColors.textDisabled,
+              fontSize: 11,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -237,32 +237,39 @@ class _ProjectChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = project?.name ?? '未归项目';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              color: project?.color.uiColor ?? AppColors.textDisabled,
-              shape: BoxShape.circle,
+    return Tooltip(
+      message: name,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: project?.color.uiColor ?? AppColors.textDisabled,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            name,
-            style: AppText.micro.copyWith(
-              fontSize: 10,
-              color: AppColors.textTertiary,
+            const SizedBox(width: AppSpacing.xs),
+            Flexible(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.micro.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -343,7 +350,7 @@ class _OverlapChip extends StatelessWidget {
   }
 }
 
-/// 行尾的小图标按钮（编辑 / 删除），只在 hover 时出现。
+/// 行尾操作固定宽度，悬停时不会挤动标题。
 class _MiniIconButton extends StatelessWidget {
   const _MiniIconButton({
     super.key,
@@ -356,6 +363,8 @@ class _MiniIconButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onTap;
 
+  static const double extent = 26;
+
   @override
   Widget build(BuildContext context) {
     return Tooltip(
@@ -365,9 +374,9 @@ class _MiniIconButton extends StatelessWidget {
         borderRadius: AppRadius.control,
         onTap: onTap,
         child: SizedBox(
-          width: 20,
-          height: 22,
-          child: Icon(icon, size: 14, color: AppColors.textTertiary),
+          width: extent,
+          height: extent,
+          child: Icon(icon, size: 15, color: AppColors.textSecondary),
         ),
       ),
     );

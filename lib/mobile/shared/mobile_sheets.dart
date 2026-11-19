@@ -7,7 +7,7 @@ import '../theme/mobile_metrics.dart';
 ///
 /// - 平板/横屏时面板宽度不超过 [MobileMetrics.sheetMaxWidth] 并居中；
 /// - `heightFactor` 默认 0.92，面板内容自己决定「标题 + 滚动区 + 固定操作栏」；
-/// - 键盘弹出时用 `AnimatedPadding` 把整块面板顶到键盘上方。
+/// - 有键盘时使用键盘上方的全部空间，并统一处理系统底部安全区。
 Future<T?> showMobileSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -27,14 +27,22 @@ Future<T?> showMobileSheet<T>(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     builder: (BuildContext sheetContext) {
-      final insets = MediaQuery.viewInsetsOf(sheetContext).bottom;
-      return AnimatedPadding(
-        duration: AppMotion.hover,
-        curve: AppMotion.curve,
+      final isCurrent = ModalRoute.isCurrentOf(sheetContext) ?? true;
+      // 上层表单的键盘不应改变底下日面板的高度和列表位置。
+      final insets = isCurrent
+          ? MediaQuery.viewInsetsOf(sheetContext).bottom
+          : 0.0;
+      return Padding(
         padding: EdgeInsets.only(bottom: insets),
         child: FractionallySizedBox(
-          heightFactor: heightFactor,
-          child: builder(sheetContext),
+          heightFactor: insets == 0 ? heightFactor : 1,
+          child: SafeArea(
+            top: false,
+            left: false,
+            right: false,
+            maintainBottomViewPadding: !isCurrent,
+            child: Builder(builder: builder),
+          ),
         ),
       );
     },

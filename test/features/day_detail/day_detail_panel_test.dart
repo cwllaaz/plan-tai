@@ -665,12 +665,19 @@ void main() {
     expect(find.text('联调准备'), findsOneWidget);
   });
 
-  testWidgets('hover 任务行才出现编辑/删除按钮', (WidgetTester tester) async {
+  testWidgets('编辑始终可见，删除只在悬停时出现', (WidgetTester tester) async {
     final repository = InMemoryPlannerRepository();
     final task = await _addTask(repository, title: '悬停任务', hour: 9);
     await _pumpPanel(tester, repository);
 
-    expect(find.byKey(ValueKey<String>('task-edit-${task.id}')), findsNothing);
+    expect(
+      find.byKey(ValueKey<String>('task-edit-${task.id}')).hitTestable(),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(ValueKey<String>('task-delete-${task.id}')),
+      findsNothing,
+    );
 
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: Offset.zero);
@@ -689,7 +696,14 @@ void main() {
 
     await gesture.moveTo(const Offset(4, 4));
     await tester.pumpAndSettle();
-    expect(find.byKey(ValueKey<String>('task-edit-${task.id}')), findsNothing);
+    expect(
+      find.byKey(ValueKey<String>('task-delete-${task.id}')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(ValueKey<String>('task-edit-${task.id}')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('当日重点可新增并随备注一起保存', (WidgetTester tester) async {

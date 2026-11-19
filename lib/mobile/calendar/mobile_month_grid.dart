@@ -8,11 +8,11 @@ import '../../features/calendar/month_layout.dart';
 import '../theme/mobile_metrics.dart';
 import 'mobile_month_cell.dart';
 
-/// 移动端月历：七列网格 + 今天/选中高亮 + 跨天安排细横条 + 任务圆点与 `+N` 计数。
+/// 移动端月历：七列网格 + 今天/选中高亮 + 带标题的跨天安排横条 + 任务圆点与 `+N` 计数。
 ///
 /// - `weekMode = false`：整月网格（5–6 行），填满给定高度；
 /// - `weekMode = true`：只显示选中日期所在的一周（紧凑周历），高度按内容；
-/// - 左右滑动 → [onSwipePeriod]（外壳决定换月还是换周）；上下滑动 → [onToggleMode]。
+/// - 左右滑动 → [onSwipePeriod]（外壳决定换月还是换周）。
 ///
 /// 数据只来自 [PlannerRepository] 的三条流（整月一次性订阅，不按天循环）。
 class MobileMonthGrid extends StatefulWidget {
@@ -27,7 +27,6 @@ class MobileMonthGrid extends StatefulWidget {
     this.onOpenSpan,
     this.weekMode = false,
     this.onSwipePeriod,
-    this.onToggleMode,
     this.showWeekdayHeader = true,
   });
 
@@ -47,9 +46,6 @@ class MobileMonthGrid extends StatefulWidget {
 
   /// 左右滑动：+1 = 下一个周期，-1 = 上一个周期。
   final ValueChanged<int>? onSwipePeriod;
-
-  /// 上下滑动切换展开月历 / 紧凑周历。
-  final VoidCallback? onToggleMode;
 
   final bool showWeekdayHeader;
 
@@ -120,7 +116,6 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
   }) {
     final tasksByDate = groupTasksByDate(tasks);
     final projectsById = indexProjects(projects);
-    final spanLayouts = layoutMonthSpans(spans, _grid, maxLanes: 1);
     final weeks = widget.weekMode
         ? <List<LocalDate>>[_visibleWeek()]
         : _grid.weeks;
@@ -134,23 +129,17 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
               final width = constraints.maxWidth;
               if (width <= 1) return const SizedBox.shrink();
               final cellWidth = width / 7;
-              final double rowHeight;
-              if (widget.weekMode) {
-                final available = constraints.maxHeight.isFinite
-                    ? constraints.maxHeight
-                    : 64.0;
-                var height = available.clamp(52.0, 96.0).toDouble();
-                if (height > available) height = available;
-                rowHeight = height;
-              } else {
-                final fit = constraints.maxHeight.isFinite
-                    ? constraints.maxHeight / weeks.length
-                    : 64.0;
-                // 整月模式铺满给定高度；只有低于最小可读高度时才内部滚动。
-                rowHeight = fit < MobileMetrics.minMonthRowHeight
-                    ? MobileMetrics.minMonthRowHeight
-                    : fit;
-              }
+              final minHeight = MobileMonthCell.minimumHeight(context);
+              final fit = constraints.maxHeight.isFinite
+                  ? constraints.maxHeight / weeks.length
+                  : 64.0;
+              // 至少给标题、日期和任务圆点各留一行。空间够时显示第二条重叠的安排。
+              final rowHeight = fit < minHeight ? minHeight : fit;
+              final maxLanes =
+                  rowHeight >=
+                      MobileMonthCell.minimumHeight(context, spanLanes: 2)
+                  ? 2
+                  : 1;
               final rows = <Widget>[
                 for (final week in weeks)
                   SizedBox(
@@ -161,16 +150,17 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
                       rowHeight: rowHeight,
                       tasksByDate: tasksByDate,
                       projectsById: projectsById,
-                      layout:
-                          spanLayouts[week.first] ??
-                          WeekSpanLayout.empty(week.first),
+                      layout: layoutWeekSpans(
+                        spans,
+                        week.first,
+                        maxLanes: maxLanes,
+                      ),
                       isLastRow: week == weeks.last,
                     ),
                   ),
               ];
               final gridHeight = rowHeight * weeks.length;
               final scrolls =
-                  !widget.weekMode &&
                   constraints.maxHeight.isFinite &&
                   gridHeight > constraints.maxHeight + 0.5;
               final table = SizedBox(
@@ -196,11 +186,6 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
         final velocity = details.velocity.pixelsPerSecond.dx;
         if (velocity.abs() < 220) return;
         widget.onSwipePeriod?.call(velocity < 0 ? 1 : -1);
-      },
-      onVerticalDragEnd: (DragEndDetails details) {
-        final velocity = details.velocity.pixelsPerSecond.dy;
-        if (velocity.abs() < 220) return;
-        widget.onToggleMode?.call();
       },
       child: Container(
         decoration: BoxDecoration(
@@ -269,7 +254,7 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
   }) {
     final bars = <Widget>[
       for (final segment in layout.visible)
-        _buildSpanBar(segment, cellWidth, projectsById),
+        _buildSpanBar(context, segment, cellWidth, projectsById),
     ];
 
     return Stack(
@@ -305,6 +290,7 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
   }
 
   Widget _buildSpanBar(
+    BuildContext context,
     SpanSegment segment,
     double cellWidth,
     Map<String, Project> projectsById,
@@ -319,47 +305,79 @@ class _MobileMonthGridState extends State<MobileMonthGrid> {
       segment.span,
       projectsById[segment.span.projectId],
     );
-    final radius = Radius.circular(
-      segment.continuesBefore && segment.continuesAfter ? 0 : 2,
-    );
-    final radiusLeft = segment.continuesBefore ? Radius.zero : radius;
-    final radiusRight = segment.continuesAfter ? Radius.zero : radius;
+    final width = right - left;
+    if (width <= 0) return const SizedBox.shrink();
+    final radiusLeft = segment.continuesBefore
+        ? Radius.zero
+        : const Radius.circular(3);
+    final radiusRight = segment.continuesAfter
+        ? Radius.zero
+        : const Radius.circular(3);
+    final laneHeight = MobileMonthCell.spanLaneHeight(context);
     return Positioned(
       left: left,
-      top: 23,
-      width: (right - left).clamp(4, cellWidth * 7).toDouble(),
-      height: 4,
+      top:
+          MobileMonthCell.dateBandHeight(context) +
+          segment.lane * (laneHeight + MobileMonthCell.spanLaneGap),
+      width: width,
+      height: laneHeight,
       child: GestureDetector(
         key: ValueKey<String>(
           'mobile-spanbar-${segment.span.id}-${segment.weekStart.iso}',
         ),
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _handleSpanTap(segment.span),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              color.uiColor.withValues(alpha: 0.5),
-              AppColors.surface,
-            ),
+        behavior: widget.onOpenSpan == null
+            ? HitTestBehavior.deferToChild
+            : HitTestBehavior.opaque,
+        onTap: widget.onOpenSpan == null
+            ? null
+            : () => widget.onOpenSpan!(segment.span),
+        child: IgnorePointer(
+          ignoring: widget.onOpenSpan == null,
+          child: ClipRRect(
             borderRadius: BorderRadius.only(
               topLeft: radiusLeft,
               bottomLeft: radiusLeft,
               topRight: radiusRight,
               bottomRight: radiusRight,
             ),
+            child: ColoredBox(
+              color: MobilePalette.spanFill(color),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (segment.beginsHere)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 2,
+                      child: ColoredBox(color: color.uiColor),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        segment.span.title,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        semanticsLabel: '跨天安排：${segment.span.title}',
+                        style: AppText.micro.copyWith(
+                          fontSize: MobileMonthCell.spanTitleSize,
+                          height: 1.1,
+                          fontWeight: FontWeight.w500,
+                          color: MobilePalette.spanInk(color),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
-  }
-
-  /// 点击跨天条：优先编辑安排，否则定位到安排起点。
-  void _handleSpanTap(PlanSpan span) {
-    final handler = widget.onOpenSpan;
-    if (handler != null) {
-      handler(span);
-      return;
-    }
-    widget.onSelectDate(span.startDate);
   }
 }

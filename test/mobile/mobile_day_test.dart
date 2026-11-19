@@ -200,18 +200,101 @@ void main() {
       expect(find.text('这一天还没有任务'), findsOneWidget);
     });
 
-    testWidgets('键盘弹出时编辑面板不溢出', (WidgetTester tester) async {
+    testWidgets('横屏键盘上方可滚动到备注、标题错误与保存，草稿保留', (tester) async {
       final repository = await demoRepository();
-      await pumpMobileApp(tester, repository: repository);
-
-      await tapVisibleKey(tester, 'mobile-add-task');
-      tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      await pumpMobileApp(
+        tester,
+        repository: repository,
+        size: phoneNarrow,
+        textScale: 1.3,
+      );
+      final date = LocalDate(2026, 11, 15);
+      await tapDayCell(tester, date);
+      await tapKey(tester, 'mobile-add-task');
+      final title = find.byKey(const ValueKey('mobile-task-editor-title'));
+      final notes = find.byKey(const ValueKey('mobile-task-editor-notes'));
+      final save = find.byKey(const ValueKey('mobile-task-editor-save'));
+      tester.view.physicalSize = const Size(640, 320);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 236);
       addTearDown(tester.view.resetViewInsets);
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey<String>('mobile-task-editor-title')),
-        findsOneWidget,
+
+      await tester.ensureVisible(notes);
+      await tester.pumpAndSettle();
+      expect(notes.hitTestable(), findsOneWidget);
+      await tester.enterText(notes, '旋转后仍在的任务备注');
+      await tester.pumpAndSettle();
+      await tapVisibleKey(tester, 'mobile-task-editor-save');
+      final titleError = find.text('请填写任务标题');
+      await tester.ensureVisible(titleError);
+      await tester.pumpAndSettle();
+      expect(titleError.hitTestable(), findsOneWidget);
+
+      await tester.ensureVisible(title);
+      await tester.enterText(title, '横屏键盘回归任务');
+      tester.view.physicalSize = phoneNarrow;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 285);
+      await tester.pumpAndSettle();
+      expect(save.hitTestable(), findsOneWidget);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+
+      final saved = (await repository.tasksInRange(
+        LocalDateRange.singleDay(date),
+      )).singleWhere((task) => task.title == '横屏键盘回归任务');
+      expect(saved.notes, '旋转后仍在的任务备注');
+      expect(find.textContaining('11月15日 '), findsOneWidget);
+      expect(title, findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('系统返回先收起键盘，再询问是否放弃草稿', (tester) async {
+      final repository = await demoRepository();
+      await pumpMobileApp(tester, repository: repository, size: phoneNarrow);
+      await tapKey(tester, 'mobile-add-task');
+      final title = find.byKey(const ValueKey('mobile-task-editor-title'));
+      await tester.enterText(title, '返回键测试草稿');
+      tester.view.viewInsets = const FakeViewPadding(bottom: 285);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+
+      await tester.binding.handlePopRoute();
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+      expect(title.hitTestable(), findsOneWidget);
+      expect(find.text('放弃这次编辑？'), findsNothing);
+      expect(tester.widget<TextField>(title).controller!.text, '返回键测试草稿');
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('放弃这次编辑？'), findsOneWidget);
+      await tapKey(tester, 'mobile-confirm-ok');
+      expect(title, findsNothing);
+      expect(find.byTooltip('新建任务').hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('平板备注编辑时缩回手机档，仍保留同一天的草稿', (tester) async {
+      final repository = await demoRepository();
+      await pumpMobileApp(
+        tester,
+        repository: repository,
+        size: tabletLandscape,
       );
+      final note = find.byKey(const ValueKey('day-note-field'));
+      await tester.scrollUntilVisible(
+        note,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.enterText(note, '跨布局切换的当日备注');
+      tester.view.physicalSize = phoneNarrow;
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TextField>(note).controller!.text, '跨布局切换的当日备注');
+      await settleFor(tester, const Duration(milliseconds: 650));
+      expect((await repository.findDailyNote(testToday))?.body, '跨布局切换的当日备注');
       expect(tester.takeException(), isNull);
     });
 

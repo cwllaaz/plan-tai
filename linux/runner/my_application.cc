@@ -1,6 +1,9 @@
 #include "my_application.h"
 
+#include <algorithm>
+
 #include <flutter_linux/flutter_linux.h>
+#include <gdk/gdkx.h>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -11,10 +14,71 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Called when first Flutter frame received.
-static void first_frame_cb(MyApplication* self, FlView* view) {
-  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+namespace {
+
+// Match the desktop startup policy in lib/main.dart, in GTK logical units.
+constexpr int kDefaultWidth = 1440;
+constexpr int kDefaultHeight = 900;
+constexpr int kMinWidth = 1100;
+constexpr int kMinHeight = 700;
+// Leave room for decorations. On Wayland, GTK can report the full output
+// instead of the usable area; allow extra height for the panel and placement.
+constexpr int kFrameAllowance = 64;
+constexpr int kWaylandHeightAllowance = 112;
+
+struct StartupGeometry {
+  GdkRectangle workarea;
+  int width;
+  int height;
+};
+
+StartupGeometry GetStartupGeometry(GtkWidget* widget) {
+  GdkDisplay* display = gtk_widget_get_display(widget);
+  GdkWindow* surface = gtk_widget_get_window(widget);
+  GdkMonitor* monitor =
+      surface ? gdk_display_get_monitor_at_window(display, surface) : nullptr;
+  if (!monitor) monitor = gdk_display_get_primary_monitor(display);
+  if (!monitor) monitor = gdk_display_get_monitor(display, 0);
+
+  StartupGeometry geometry = {{}, kDefaultWidth, kDefaultHeight};
+  if (monitor) {
+    gdk_monitor_get_workarea(monitor, &geometry.workarea);
+    const int height_allowance =
+        GDK_IS_X11_DISPLAY(display) ? kFrameAllowance : kWaylandHeightAllowance;
+    geometry.width = std::max(
+        kMinWidth,
+        std::min(kDefaultWidth, geometry.workarea.width - kFrameAllowance));
+    geometry.height = std::max(
+        kMinHeight,
+        std::min(kDefaultHeight, geometry.workarea.height - height_allowance));
+  }
+  return geometry;
 }
+
+// Fit the initial allocation after the shared Dart startup requests 1440x900.
+void first_frame_cb(FlView*, GtkWindow* window) {
+  GtkWidget* widget = GTK_WIDGET(window);
+  const StartupGeometry geometry = GetStartupGeometry(widget);
+  if (!gtk_widget_get_mapped(widget) || !gtk_window_is_maximized(window)) {
+    int width, height;
+    gtk_window_get_size(window, &width, &height);
+    const int fitted_width = std::min(width, geometry.width);
+    const int fitted_height = std::min(height, geometry.height);
+    if (width != fitted_width || height != fitted_height) {
+      gtk_window_resize(window, fitted_width, fitted_height);
+      // The Wayland compositor owns placement. Only X11 accepts a position.
+      if (GDK_IS_X11_DISPLAY(gtk_widget_get_display(widget))) {
+        const GdkRectangle& area = geometry.workarea;
+        gtk_window_move(window,
+                        area.x + (area.width - fitted_width) / 2,
+                        area.y + (area.height - fitted_height) / 2);
+      }
+    }
+  }
+  gtk_widget_show(widget);
+}
+
+}  // namespace
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
@@ -22,7 +86,9 @@ static void my_application_activate(GApplication* application) {
 
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
-  gtk_window_set_default_size(window, 1280, 720);
+  const StartupGeometry geometry = GetStartupGeometry(GTK_WIDGET(window));
+  gtk_window_set_default_size(window, geometry.width, geometry.height);
+  gtk_window_set_position(window, GTK_WIN_POS_CENTER);
 
   // If you want to use a header bar, uncomment the following lines.
   // Header bars are commonly used in GNOME based desktop environments and
@@ -45,6 +111,9 @@ static void my_application_activate(GApplication* application) {
       project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
+  // The shared Dart minimum is for the decorated frame and its plugin updates
+  // the hints on maximize/restore. Set the Flutter content requisition too.
+  gtk_widget_set_size_request(GTK_WIDGET(view), kMinWidth, kMinHeight);
   GdkRGBA background_color;
   // 与 AppColors.canvas（#F7F8FA）一致：首帧前不会闪黑/闪白，避免与 Windows 观感不同。
   gdk_rgba_parse(&background_color, "#F7F8FA");
@@ -52,10 +121,9 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
-  // Show the window when Flutter renders.
-  // Requires the view to be realized so we can start rendering.
-  g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
-                           self);
+  // Show the fallback window when Flutter renders if Dart did not show it.
+  // Realize the view first so Flutter can render.
+  g_signal_connect(view, "first-frame", G_CALLBACK(first_frame_cb), window);
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));

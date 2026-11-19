@@ -32,11 +32,11 @@ void main() {
       await pumpMobileApp(tester, repository: repository);
 
       await tapDayCell(tester, LocalDate(2026, 11, 20));
-      expect(find.text('11月20日'), findsWidgets);
+      expect(find.textContaining('11月20日 '), findsWidgets);
 
       await tapKey(tester, 'mobile-tab-projects');
       await tapKey(tester, 'mobile-tab-calendar');
-      expect(find.text('11月20日'), findsWidgets);
+      expect(find.textContaining('11月20日 '), findsWidgets);
     });
 
     testWidgets('非日历分区按返回键先回日历分区', (WidgetTester tester) async {
@@ -52,6 +52,61 @@ void main() {
       expect(find.text('2026年11月'), findsOneWidget);
       expect(find.text('项目与日程 · Android'), findsNothing);
     });
+  });
+
+  for (final (width, height, inset, nav) in [
+    (599.0, 900.0, 0.0, 'tab'),
+    (600.0, 900.0, 0.0, 'rail'),
+    (601.0, 900.0, 0.0, 'rail'),
+    (839.0, 800.0, 0.0, 'rail'),
+    (840.0, 800.0, 0.0, 'project-nav'),
+    (841.0, 800.0, 0.0, 'project-nav'),
+    (840.0, 800.0, 8.0, 'rail'),
+    (920.0, 519.0, 0.0, 'rail'),
+    (920.0, 520.0, 0.0, 'project-nav'),
+  ]) {
+    testWidgets('窗口 $width×$height，侧边安全区 $inset：$nav', (tester) async {
+      tester.view.viewPadding = FakeViewPadding(left: inset, bottom: 0);
+      tester.view.padding = FakeViewPadding(left: inset, bottom: 0);
+      addTearDown(tester.view.resetViewPadding);
+      addTearDown(tester.view.resetPadding);
+      final repository = await demoRepository();
+      await pumpMobileApp(
+        tester,
+        repository: repository,
+        size: Size(width, height),
+        textScale: 1.3,
+      );
+      expect(
+        find.byType(MobileBottomNav),
+        nav == 'tab' ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.byType(MobileNavRail),
+        nav == 'rail' ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.byType(MobileProjectNav),
+        nav == 'project-nav' ? findsOneWidget : findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('跨过 600 / 840dp 保留已选日和周历偏好', (tester) async {
+    final repository = await demoRepository();
+    await pumpMobileApp(tester, repository: repository);
+    await tapDayCell(tester, LocalDate(2026, 11, 20));
+    await tapKey(tester, 'mobile-calendar-mode');
+    tester.view.physicalSize = tabletLandscape;
+    await tester.pumpAndSettle();
+    expect(find.byType(MobileProjectNav), findsOneWidget);
+    expect(find.textContaining('11月20日 '), findsOneWidget);
+    tester.view.physicalSize = phoneSmall;
+    await tester.pumpAndSettle();
+    expect(find.text('展开整月'), findsOneWidget);
+    expect(find.textContaining('11月20日 '), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   group('平板与横屏布局', () {
@@ -139,12 +194,12 @@ void main() {
       );
 
       await tapDayCell(tester, LocalDate(2026, 11, 20));
-      expect(find.text('11月20日'), findsWidgets);
+      expect(find.textContaining('11月20日 '), findsWidgets);
 
       await tapKey(tester, 'mobile-nav-today');
       expect(find.text('今日任务'), findsOneWidget);
       await tapKey(tester, 'mobile-nav-calendar');
-      expect(find.text('11月20日'), findsWidgets);
+      expect(find.textContaining('11月20日 '), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   });

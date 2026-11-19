@@ -84,7 +84,7 @@ class _DayCellState extends State<DayCell> {
     if (widget.isToday) return AppColors.todaySoft;
     if (!widget.inMonth) return CalendarPalette.outsideMonth;
     if (_hovered) return AppColors.surfaceHover;
-    // 本月内的格子一律白底：周末不再单独上灰，避免"整列发灰"被误读成非本月。
+    // 本月内的格子统一白底，周末只在表头区分。
     return AppColors.surface;
   }
 
@@ -101,7 +101,9 @@ class _DayCellState extends State<DayCell> {
       overflowRowHeight: CalendarMetrics.overflowRowHeight,
     );
 
-    final showTime = widget.width >= CalendarMetrics.compactCellWidth;
+    final horizontalPadding = widget.width >= CalendarMetrics.compactCellWidth
+        ? CalendarMetrics.cellPadding
+        : AppSpacing.xs;
     final laneReserve = widget.laneCount <= 0
         ? 0.0
         : CalendarMetrics.laneTopGap +
@@ -154,7 +156,10 @@ class _DayCellState extends State<DayCell> {
             // 3. 内容
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.all(CalendarMetrics.cellPadding),
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: CalendarMetrics.cellPadding,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -162,17 +167,23 @@ class _DayCellState extends State<DayCell> {
                       height: CalendarMetrics.dateRowHeight,
                       child: Row(
                         children: <Widget>[
-                          _DateBadge(
-                            date: widget.date,
-                            inMonth: widget.inMonth,
-                            isToday: widget.isToday,
-                            isSelected: widget.isSelected,
+                          IgnorePointer(
+                            child: _DateBadge(
+                              date: widget.date,
+                              inMonth: widget.inMonth,
+                              isToday: widget.isToday,
+                              isSelected: widget.isSelected,
+                            ),
                           ),
-                          const Spacer(),
                           if (widget.hiddenSpanCount > 0)
-                            _SpanOverflowBadge(
-                              count: widget.hiddenSpanCount,
-                              onTap: widget.onOpenDay,
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: _SpanOverflowBadge(
+                                  count: widget.hiddenSpanCount,
+                                  onTap: widget.onOpenDay,
+                                ),
+                              ),
                             ),
                         ],
                       ),
@@ -186,7 +197,6 @@ class _DayCellState extends State<DayCell> {
                             ? null
                             : widget.projects[task.projectId],
                         inMonth: widget.inMonth,
-                        showTime: showTime,
                         onSelect: () => widget.onTaskTap(task),
                         onOpenDay: widget.onOpenDay,
                       ),
@@ -280,7 +290,7 @@ class _DateBadge extends StatelessWidget {
   }
 }
 
-/// 一行任务：项目色圆点 + 时间 + 标题；完成态加删除线。
+/// 一行任务：项目色圆点 + 标题，时间保留在提示与当日面板。
 ///
 /// 交互：单击 = 选中该日（与点格子空白一致，不打断浏览）；双击 = 打开当日面板。
 /// 这样整格"单击选中 / 双击展开"的语义保持一致，也不会因为任务行挡住格子中心
@@ -291,7 +301,6 @@ class _TaskRow extends StatefulWidget {
     required this.task,
     required this.project,
     required this.inMonth,
-    required this.showTime,
     required this.onSelect,
     required this.onOpenDay,
   });
@@ -299,7 +308,6 @@ class _TaskRow extends StatefulWidget {
   final PlannerTask task;
   final Project? project;
   final bool inMonth;
-  final bool showTime;
   final VoidCallback onSelect;
   final VoidCallback onOpenDay;
 
@@ -353,23 +361,7 @@ class _TaskRowState extends State<_TaskRow> {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 5),
-                  if (widget.showTime && task.timeSlot != null) ...<Widget>[
-                    SizedBox(
-                      width: CalendarMetrics.taskTimeWidth,
-                      child: Text(
-                        task.timeSlot!.startLabel,
-                        maxLines: 1,
-                        style: AppText.numeric.copyWith(
-                          fontSize: 9.5,
-                          height: 1.0,
-                          color: CalendarPalette.taskTimeInk(widget.inMonth),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ] else
-                    const SizedBox(width: 2),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
                       task.title,
@@ -377,8 +369,8 @@ class _TaskRowState extends State<_TaskRow> {
                       overflow: TextOverflow.ellipsis,
                       softWrap: false,
                       style: TextStyle(
-                        fontSize: 10.5,
-                        height: 1.0,
+                        fontSize: 12,
+                        height: 1.15,
                         color: titleColor,
                         fontWeight: done ? FontWeight.w400 : FontWeight.w500,
                         decoration: done ? TextDecoration.lineThrough : null,
@@ -426,10 +418,12 @@ class _TaskOverflowRow extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               '+$count 项',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppText.micro.copyWith(
-                fontSize: 10,
+                fontSize: 11,
                 height: 1.0,
-                color: AppColors.textTertiary,
+                color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -440,7 +434,7 @@ class _TaskOverflowRow extends StatelessWidget {
   }
 }
 
-/// 本周跨天条超出两条车道时的 `+N` 提示（只在每周最后一列出现）。
+/// 当天被折叠的跨天安排，点击打开对应日期。
 class _SpanOverflowBadge extends StatelessWidget {
   const _SpanOverflowBadge({required this.count, required this.onTap});
 
@@ -450,7 +444,7 @@ class _SpanOverflowBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '本周还有 $count 条安排未展开，双击日期查看当日全部',
+      message: '当天还有 $count 条跨天安排未展开，点击查看',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -465,6 +459,8 @@ class _SpanOverflowBadge extends StatelessWidget {
             ),
             child: Text(
               '+$count',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppText.micro.copyWith(
                 fontSize: 9.5,
                 height: 1.4,

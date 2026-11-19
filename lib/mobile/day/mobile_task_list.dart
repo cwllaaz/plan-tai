@@ -29,6 +29,7 @@ class MobileTaskList extends StatefulWidget {
     this.emptyMessage = '把要做的事记下来，完成情况会自动统计。',
     this.addLabel = '新建任务',
     this.showAddButton = true,
+    this.compactEmpty = false,
   });
 
   final PlannerRepository repository;
@@ -43,6 +44,7 @@ class MobileTaskList extends StatefulWidget {
   final String emptyMessage;
   final String addLabel;
   final bool showAddButton;
+  final bool compactEmpty;
 
   @override
   State<MobileTaskList> createState() => _MobileTaskListState();
@@ -78,7 +80,12 @@ class _MobileTaskListState extends State<MobileTaskList> {
   Widget build(BuildContext context) {
     final split = splitDayTasks(widget.tasks);
     final children = <Widget>[
-      if (widget.tasks.isEmpty)
+      if (widget.tasks.isEmpty && widget.compactEmpty)
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(widget.emptyTitle, style: AppText.caption),
+        )
+      else if (widget.tasks.isEmpty)
         MobileEmptyState(
           title: widget.emptyTitle,
           message: widget.emptyMessage,

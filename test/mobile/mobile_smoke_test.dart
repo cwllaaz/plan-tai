@@ -25,7 +25,7 @@ void main() {
       findsOneWidget,
     );
     // 下方选中日摘要（不是「今日」分区的任务列表标题）。
-    expect(find.text('11月14日'), findsWidgets);
+    expect(find.textContaining('11月14日 '), findsWidgets);
     expect(
       find.byKey(const ValueKey<String>('mobile-day-expand')),
       findsOneWidget,

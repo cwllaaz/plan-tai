@@ -60,7 +60,12 @@ class DayNoteSection extends StatefulWidget {
   State<DayNoteSection> createState() => _DayNoteSectionState();
 }
 
-class _DayNoteSectionState extends State<DayNoteSection> {
+class _DayNoteSectionState extends State<DayNoteSection>
+    with AutomaticKeepAliveClientMixin<DayNoteSection> {
+  // 备注区移入滚动列表后，滚出视口时也保留正在输入的当日重点。
+  @override
+  bool get wantKeepAlive => true;
+
   /// 正在编辑的重点下标；-1 表示新增。null 表示没有在编辑。
   int? _editingIndex;
   TextEditingController? _chipController;
@@ -139,6 +144,7 @@ class _DayNoteSectionState extends State<DayNoteSection> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final body = widget.controller.text;
     final isEmpty = body.trim().isEmpty && widget.focusItems.isEmpty;
     return Container(

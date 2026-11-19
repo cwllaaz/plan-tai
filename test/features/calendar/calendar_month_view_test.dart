@@ -1,5 +1,4 @@
-import 'package:flutter/gestures.dart'
-    show PointerDeviceKind, kSecondaryButton;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jihuatai/core/contracts/contracts.dart';
 import 'package:jihuatai/core/models/models.dart';
@@ -304,7 +303,7 @@ void main() {
   });
 
   group('单日任务', () {
-    testWidgets('显示时间、标题与项目色，单击选中、双击开面板', (tester) async {
+    testWidgets('标题优先、悬停可查时间，单击选中、双击开面板', (tester) async {
       final repository = InMemoryPlannerRepository();
       final project = await repository.createProject(
         const ProjectDraft(name: '产品官网改版', color: ProjectColor.blue),
@@ -321,9 +320,17 @@ void main() {
       final events = await pumpCalendar(tester, repository: repository);
 
       expect(find.text('信息架构评审'), findsOneWidget);
-      expect(find.text('09:00'), findsOneWidget);
+      expect(find.text('09:00'), findsNothing);
 
       final taskFinder = find.byKey(ValueKey<String>('task-${task.id}'));
+      expect(
+        tester
+            .widget<Tooltip>(
+              find.descendant(of: taskFinder, matching: find.byType(Tooltip)),
+            )
+            .message,
+        contains('09:00'),
+      );
       await tester.tap(taskFinder);
       await tester.pumpAndSettle();
       expect(events.selected, <LocalDate>[LocalDate(2026, 11, 18)]);
@@ -482,7 +489,7 @@ void main() {
       expect(events.opened, isEmpty);
     });
 
-    testWidgets('相互重叠的阶段最多两条车道，超出折叠为本周 +N', (tester) async {
+    testWidgets('重叠阶段限两车道，逐日计数并打开对应日期', (tester) async {
       final repository = InMemoryPlannerRepository();
       final projectA = await repository.createProject(
         const ProjectDraft(name: '项目甲', color: ProjectColor.blue),
@@ -515,19 +522,16 @@ void main() {
         ),
       );
 
-      await pumpCalendar(tester, repository: repository);
+      final events = await pumpCalendar(tester, repository: repository);
 
       expect(find.byType(SpanBar), findsNWidgets(2));
       expect(find.text('阶段 C'), findsNothing);
-      // 折叠提示只出现在每周最后一列（11 月 7 日，周六）。
-      expect(
-        find.descendant(of: dayCell('2026-11-07'), matching: find.text('+1')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: dayCell('2026-11-04'), matching: find.text('+1')),
-        findsNothing,
-      );
+      Finder badge(String iso) =>
+          find.descendant(of: dayCell(iso), matching: find.text('+1'));
+      expect(badge('2026-11-07'), findsNothing);
+      expect(badge('2026-11-05'), findsOneWidget);
+      await tester.tap(badge('2026-11-04'));
+      expect(events.opened, [LocalDate(2026, 11, 4)]);
     });
 
     testWidgets('跨月阶段在两个月里都不丢失起止关系', (tester) async {
@@ -574,9 +578,7 @@ void main() {
 
       final events = await pumpCalendar(tester, repository: repository);
 
-      final bar = find.byKey(
-        ValueKey<String>('span-${span.id}-2026-11-01'),
-      );
+      final bar = find.byKey(ValueKey<String>('span-${span.id}-2026-11-01'));
       await tester.tap(bar);
       await tester.pumpAndSettle();
       expect(events.selected, <LocalDate>[LocalDate(2026, 11, 3)]);

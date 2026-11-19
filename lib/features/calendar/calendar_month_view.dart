@@ -7,7 +7,7 @@ import 'calendar_style.dart';
 import 'month_grid.dart';
 import 'month_layout.dart';
 
-/// 月历视图（月历模块 实现）。
+/// 月历视图（Agent A 实现）。
 ///
 /// 只负责"把一个月画好"：整周网格、今天/选中状态、跨天阶段车道、单日任务与折叠计数。
 /// 窗口边框、侧栏、顶栏、月份切换、抽屉开关都由外壳负责（见 docs/MODULE_API.md §2）。
@@ -170,7 +170,7 @@ class _CalendarDataState extends State<_CalendarData> {
       maxLanes: CalendarMetrics.maxLanes,
     );
     final projectsById = indexProjects(projects);
-    final spansPerDay = _countSpansPerDay(spanLayout.values);
+    final spansPerDay = _countSpansPerDay(spans);
 
     final monthRange = LocalDateRange.monthOf(_grid.month);
     final monthTaskCount = tasks
@@ -256,21 +256,15 @@ class _CalendarDataState extends State<_CalendarData> {
   }
 
   /// 每天被多少条跨天阶段覆盖（仅用于格子无障碍文案）。
-  Map<LocalDate, int> _countSpansPerDay(Iterable<WeekSpanLayout> layouts) {
-    final counts = <LocalDate, int>{};
-    for (final layout in layouts) {
-      for (final segment in layout.visible) {
-        for (
-          var day = segment.start;
-          !day.isAfter(segment.end);
-          day = day.addDays(1)
-        ) {
-          counts[day] = (counts[day] ?? 0) + 1;
-        }
-      }
-    }
-    return counts;
-  }
+  Map<LocalDate, int> _countSpansPerDay(List<PlanSpan> spans) => {
+    for (final day in _grid.weeks.expand((week) => week))
+      day: spans
+          .where(
+            (span) =>
+                !day.isBefore(span.startDate) && !day.isAfter(span.endDate),
+          )
+          .length,
+  };
 }
 
 /// 月历头：标题 + 本月规模 + 图例（跨天条 / 单日任务）。

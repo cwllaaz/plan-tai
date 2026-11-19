@@ -47,14 +47,31 @@ class MobileMonthCell extends StatelessWidget {
   /// 最多画几个任务圆点，其余折叠成 `+N`。
   static const int maxDots = 2;
 
+  // 跨天横条从日期区下方起画，避免放大字体时盖住日期。
+  static double dateBandHeight(BuildContext context) =>
+      8 + MediaQuery.textScalerOf(context).scale(13) * 1.2;
+
+  static const double spanTitleSize = 11;
+  static const double spanLaneGap = 2;
+
+  static double spanLaneHeight(BuildContext context) =>
+      (MediaQuery.textScalerOf(context).scale(spanTitleSize) * 1.2 + 3)
+          .ceilToDouble();
+
+  static double minimumHeight(BuildContext context, {int spanLanes = 1}) =>
+      (dateBandHeight(context) +
+              spanLanes * spanLaneHeight(context) +
+              (spanLanes - 1) * spanLaneGap +
+              _dotHeight +
+              4)
+          .clamp(MobileMetrics.minMonthRowHeight, double.infinity);
+
+  static const double _dotHeight = 12;
+
   @override
   Widget build(BuildContext context) {
     final background = _background();
-    final textScaler = MediaQuery.textScalerOf(context);
-    // 字体放大时压缩文字层级，仍然只显示日期数字，避免撑破格子。
-    final scaleFactor = textScaler.scale(13) / 13;
-    final canShowDots = rowHeight >= 42 && scaleFactor <= 1.35;
-    final canShowDotOverflow = rowHeight >= 40;
+    final canShowDots = rowHeight + 0.01 >= minimumHeight(context);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -86,10 +103,23 @@ class MobileMonthCell extends StatelessWidget {
                   bottom: 0,
                   child: Container(width: 2, color: AppColors.accent),
                 ),
+              if (isToday)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(2, 4, 2, 3),
+                padding: const EdgeInsets.fromLTRB(2, 4, 2, 2),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Text(
                       dayNumber(date),
@@ -106,7 +136,7 @@ class MobileMonthCell extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (canShowDots) _buildDots(canShowDotOverflow),
+                    if (canShowDots && tasks.isNotEmpty) _buildDots(_dotHeight),
                   ],
                 ),
               ),
@@ -136,18 +166,16 @@ class MobileMonthCell extends StatelessWidget {
   }
 
   Color _ink() {
+    if (isToday || isSelected) return AppColors.accent;
     if (!inMonth) return AppColors.textDisabled;
-    if (isToday) return AppColors.accent;
-    if (isSelected) return AppColors.accent;
     return AppColors.textPrimary;
   }
 
-  Widget _buildDots(bool showOverflow) {
-    if (tasks.isEmpty) return const SizedBox(height: 10);
+  Widget _buildDots(double height) {
     final visible = tasks.take(maxDots).toList(growable: false);
     final hidden = tasks.length - visible.length;
     return SizedBox(
-      height: 10,
+      height: height,
       child: Center(
         child: FittedBox(
           fit: BoxFit.scaleDown,
@@ -167,16 +195,16 @@ class MobileMonthCell extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (hidden > 0 && showOverflow)
+              if (hidden > 0)
                 Padding(
                   padding: const EdgeInsets.only(left: 1),
                   child: Text(
                     '+$hidden',
                     style: AppText.micro.copyWith(
-                      fontSize: 9,
+                      fontSize: 10,
                       height: 1,
                       color: inMonth
-                          ? AppColors.textTertiary
+                          ? AppColors.textSecondary
                           : AppColors.textDisabled,
                     ),
                   ),

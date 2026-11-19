@@ -63,7 +63,12 @@ class TaskEditorCard extends StatefulWidget {
   State<TaskEditorCard> createState() => _TaskEditorCardState();
 }
 
-class _TaskEditorCardState extends State<TaskEditorCard> {
+class _TaskEditorCardState extends State<TaskEditorCard>
+    with AutomaticKeepAliveClientMixin<TaskEditorCard> {
+  // 滚出列表视口或窗口缩小时，未提交的输入仍属于当前编辑卡。
+  @override
+  bool get wantKeepAlive => true;
+
   late final TextEditingController _titleController;
   late final TextEditingController _startController;
   late final TextEditingController _endController;
@@ -206,6 +211,7 @@ class _TaskEditorCardState extends State<TaskEditorCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Container(
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.xs + 2,
@@ -269,6 +275,8 @@ class _TaskEditorCardState extends State<TaskEditorCard> {
               controller: _titleController,
               autofocus: true,
               textInputAction: TextInputAction.next,
+              minLines: 1,
+              maxLines: 2,
               maxLength: 200,
               buildCounter: (
                 BuildContext context, {
@@ -281,7 +289,7 @@ class _TaskEditorCardState extends State<TaskEditorCard> {
                 color: AppColors.textPrimary,
               ),
               decoration: InputDecoration(
-                hintText: '任务标题',
+                labelText: '任务标题',
                 errorText: _titleError,
               ),
               onChanged: (_) {
@@ -373,9 +381,12 @@ class _TaskEditorCardState extends State<TaskEditorCard> {
                     },
                   ),
                 ] else
-                  Text(
-                    '不排具体时间，当天完成即可',
-                    style: AppText.micro.copyWith(fontSize: 11),
+                  Flexible(
+                    child: Text(
+                      '不排具体时间，当天完成即可',
+                      textAlign: TextAlign.end,
+                      style: AppText.micro.copyWith(fontSize: 11),
+                    ),
                   ),
               ],
             ),
@@ -418,7 +429,7 @@ class _TaskEditorCardState extends State<TaskEditorCard> {
                 fontSize: 12.5,
                 color: AppColors.textSecondary,
               ),
-              decoration: const InputDecoration(hintText: '补充说明（可选）'),
+              decoration: const InputDecoration(labelText: '任务备注（可选）'),
             ),
             if (_formError != null) ...<Widget>[
               const SizedBox(height: AppSpacing.xs + 2),

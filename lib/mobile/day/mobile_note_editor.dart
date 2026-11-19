@@ -16,16 +16,19 @@ class MobileNoteEditor extends StatefulWidget {
     super.key,
     required this.repository,
     required this.date,
+    this.onEditing,
   });
 
   final PlannerRepository repository;
   final LocalDate date;
+  final VoidCallback? onEditing;
 
   @override
   State<MobileNoteEditor> createState() => _MobileNoteEditorState();
 }
 
-class _MobileNoteEditorState extends State<MobileNoteEditor> {
+class _MobileNoteEditorState extends State<MobileNoteEditor>
+    with AutomaticKeepAliveClientMixin<MobileNoteEditor> {
   static const Duration _debounce = Duration(milliseconds: 600);
 
   final TextEditingController _controller = TextEditingController();
@@ -37,6 +40,10 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
   Timer? _timer;
   bool _dirty = false;
   bool _saving = false;
+  Future<DailyNote>? _pendingWrite;
+
+  @override
+  bool get wantKeepAlive => true;
   NoteSaveStatus _status = NoteSaveStatus.idle;
 
   @override
@@ -44,23 +51,6 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
     super.initState();
     _focusNode.addListener(_onFocusChanged);
     _subscribe();
-  }
-
-  @override
-  void didUpdateWidget(covariant MobileNoteEditor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository ||
-        oldWidget.date != widget.date) {
-      // 先把旧日期的草稿写回旧日期，再切换到新日期。
-      _flush(oldWidget.date);
-      unawaited(_subscription?.cancel());
-      _note = null;
-      _focusItems = const <String>[];
-      _controller.clear();
-      _status = NoteSaveStatus.idle;
-      _dirty = false;
-      _subscribe();
-    }
   }
 
   @override
@@ -80,12 +70,31 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
     final body = _controller.text;
     final focusItems = List<String>.from(_focusItems);
     if (_note == null && body.trim().isEmpty && focusItems.isEmpty) return;
-    unawaited(
-      widget.repository
-          .saveDailyNote(widget.date, body: body, focusItems: focusItems)
-          .then<void>((DailyNote saved) {})
-          .catchError((Object error) {}),
-    );
+    final pending = _pendingWrite;
+    final repository = widget.repository;
+    final date = widget.date;
+    unawaited(() async {
+      try {
+        if (pending != null) {
+          try {
+            final saved = await pending;
+            if (saved.body == body &&
+                _sameItems(saved.focusItems, focusItems)) {
+              return;
+            }
+          } on Object {
+            // 重新尝试写入离开时捕获的最后一个版本。
+          }
+        }
+        await repository.saveDailyNote(
+          date,
+          body: body,
+          focusItems: focusItems,
+        );
+      } on Object {
+        // 已离开面板，不能再更新已销毁状态。
+      }
+    }());
   }
 
   void _subscribe() {
@@ -125,6 +134,7 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
   }
 
   void _onFocusItemsChanged(List<String> items) {
+    widget.onEditing?.call();
     setState(() {
       _focusItems = List<String>.unmodifiable(items);
       _status = NoteSaveStatus.dirty;
@@ -137,14 +147,21 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
   }
 
   /// 立即保存（失焦 / 关闭 / 切日期）。
-  void _flush([LocalDate? target]) {
+  void _flush() {
     _timer?.cancel();
-    unawaited(_save(target));
+    unawaited(_save());
   }
 
-  Future<void> _save([LocalDate? target]) async {
+  static bool _sameItems(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  Future<void> _save() async {
     if (_saving || !_dirty) return;
-    final date = target ?? widget.date;
     final body = _controller.text;
     final focusItems = List<String>.from(_focusItems);
     if (_note == null && body.trim().isEmpty && focusItems.isEmpty) {
@@ -155,13 +172,16 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
     _saving = true;
     if (mounted) setState(() => _status = NoteSaveStatus.saving);
     try {
-      await widget.repository.saveDailyNote(
-        date,
+      final write = widget.repository.saveDailyNote(
+        widget.date,
         body: body,
         focusItems: focusItems,
       );
+      _pendingWrite = write;
+      await write;
       if (!mounted) return;
-      final changedMeanwhile = _controller.text != body;
+      final changedMeanwhile =
+          _controller.text != body || !_sameItems(_focusItems, focusItems);
       setState(() {
         _dirty = changedMeanwhile;
         _status = changedMeanwhile
@@ -185,6 +205,7 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
       ScaffoldMessenger.maybeOf(context)
           ?.showSnackBar(const SnackBar(content: Text('备注保存失败，请稍后重试')));
     } finally {
+      _pendingWrite = null;
       _saving = false;
     }
   }
@@ -196,16 +217,24 @@ class _MobileNoteEditorState extends State<MobileNoteEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return DayNoteSection(
-      controller: _controller,
-      focusNode: _focusNode,
-      focusItems: _focusItems,
-      status: _status,
-      hasNote: _note != null,
-      onBodyChanged: _onBodyChanged,
-      onCommit: _flush,
-      onFocusItemsChanged: _onFocusItemsChanged,
-      onRetry: _retry,
+    super.build(context);
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (hasFocus) {
+        if (hasFocus) widget.onEditing?.call();
+      },
+      child: DayNoteSection(
+        controller: _controller,
+        focusNode: _focusNode,
+        focusItems: _focusItems,
+        status: _status,
+        hasNote: _note != null,
+        onBodyChanged: _onBodyChanged,
+        onCommit: _flush,
+        onFocusItemsChanged: _onFocusItemsChanged,
+        onRetry: _retry,
+      ),
     );
   }
 }

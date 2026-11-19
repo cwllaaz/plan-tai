@@ -40,18 +40,29 @@ abstract final class CalendarMetrics {
   /// 任务行。
   static const double taskRowHeight = 17;
   static const double taskDotSize = 5;
-  static const double taskTimeWidth = 30;
   static const int maxTasks = 3;
 
   /// `+N 项` / `+N` 折叠行高度（含一点点上间距）。
   static const double overflowRowHeight = 13;
 
-  /// 格子宽度小于该值时收起任务时间，只留圆点 + 标题。
-  static const double compactCellWidth = 108;
+  /// 窄格减少横向留白，文字保持原字号。
+  static const double compactCellWidth = 80;
 
   /// 日期行与车道之间、车道与任务之间的总预留高度。
   static double laneBandHeight(int laneCount) =>
       laneCount <= 0 ? 0 : laneCount * laneHeight + (laneCount - 1) * laneGap;
+
+  /// 有任务溢出时，明细行与溢出计数同时预留。
+  static double requiredRowHeight(int laneCount, int busiestDay) {
+    final taskHeight =
+        busiestDay.clamp(0, maxTasks) * taskRowHeight +
+        (busiestDay > maxTasks ? overflowRowHeight : 0);
+    final fixedHeight =
+        minRowHeight -
+        taskAreaHeight(rowHeight: minRowHeight, laneCount: laneCount);
+    final total = fixedHeight + taskHeight;
+    return total > minRowHeight ? total : minRowHeight;
+  }
 
   /// 任务区可用高度。
   static double taskAreaHeight({
@@ -111,9 +122,5 @@ abstract final class CalendarPalette {
 
   /// 已完成任务的文字。
   static Color taskDoneInk(bool inMonth) =>
-      inMonth ? AppColors.textTertiary : AppColors.textDisabled;
-
-  /// 任务时间文字。
-  static Color taskTimeInk(bool inMonth) =>
       inMonth ? AppColors.textTertiary : AppColors.textDisabled;
 }

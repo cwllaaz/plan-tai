@@ -498,11 +498,13 @@ class MobileTag extends StatelessWidget {
     required this.label,
     this.color = AppColors.textSecondary,
     this.icon,
+    this.maxLines = 1,
   });
 
   final String label;
   final Color color;
   final IconData? icon;
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -525,14 +527,18 @@ class MobileTag extends StatelessWidget {
             Icon(icon, size: 11, color: color),
             const SizedBox(width: 3),
           ],
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.micro.copyWith(
-              fontSize: 11,
-              height: 1.3,
-              color: color,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: maxLines,
+              overflow: maxLines == null
+                  ? TextOverflow.clip
+                  : TextOverflow.ellipsis,
+              style: AppText.micro.copyWith(
+                fontSize: 11,
+                height: 1.3,
+                color: color,
+              ),
             ),
           ),
         ],

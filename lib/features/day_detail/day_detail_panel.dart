@@ -60,15 +60,27 @@ class DayDetailPanel extends StatelessWidget {
         color: AppColors.surface,
         border: Border(left: BorderSide(color: AppColors.border)),
       ),
-      child: _DayDetailBody(
-        // 切日期时换掉整个状态：未保存的备注按旧日期落库，编辑器与滚动位置重置，
-        // 避免把上一天的编辑带到新日期。
-        key: ValueKey<String>('day-detail-${date.iso}'),
-        repository: repository,
-        date: date,
-        today: today,
-        onClose: onClose,
-        onDateChange: onDateChange,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 外壳展开动画从 0 开始；保持表单的最小排版宽度，由外壳裁切过渡帧。
+          final width = constraints.maxWidth < 320
+              ? 320.0
+              : constraints.maxWidth;
+          return OverflowBox(
+            alignment: Alignment.topLeft,
+            minWidth: width,
+            maxWidth: width,
+            child: _DayDetailBody(
+              // 只在切换日期时重置编辑器与滚动位置。
+              key: ValueKey<String>('day-detail-${date.iso}'),
+              repository: repository,
+              date: date,
+              today: today,
+              onClose: onClose,
+              onDateChange: onDateChange,
+            ),
+          );
+        },
       ),
     );
   }
@@ -549,7 +561,6 @@ class _DayDetailBodyState extends State<_DayDetailBody> {
           onClose: widget.onClose,
         ),
         const Divider(height: 1),
-        Expanded(child: _buildTimeline(timed, untimed)),
         if (!isEmpty) _AddTaskBar(onTap: _creating ? null : _startCreate),
         if (_notice != null)
           _PanelNotice(
@@ -560,34 +571,27 @@ class _DayDetailBodyState extends State<_DayDetailBody> {
               setState(() => _notice = null);
             },
           ),
-        const Divider(height: 1),
-        DayNoteSection(
-          controller: _noteController,
-          focusNode: _noteFocus,
-          focusItems: _focusItems,
-          status: _noteStatus,
-          hasNote: _note != null,
-          onBodyChanged: _onNoteBodyChanged,
-          onCommit: _commitNote,
-          onFocusItemsChanged: _onFocusItemsChanged,
-          onRetry: _commitNote,
-        ),
+        Expanded(child: _buildTimeline(timed, untimed)),
       ],
     );
   }
 
   Widget _buildTimeline(List<PlannerTask> timed, List<PlannerTask> untimed) {
-    if (_loadingTasks) return const _TimelineSkeleton();
-    if (_tasks.isEmpty && !_creating) {
-      return _EmptyDay(
-        key: const ValueKey<String>('day-detail-empty'),
-        date: widget.date,
-        today: widget.today,
-        onCreate: _startCreate,
+    final children = <Widget>[];
+    if (_loadingTasks) children.add(const _TimelineSkeleton());
+    if (_tasks.isEmpty && !_creating && !_loadingTasks) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+          child: _EmptyDay(
+            key: const ValueKey<String>('day-detail-empty'),
+            date: widget.date,
+            today: widget.today,
+            onCreate: _startCreate,
+          ),
+        ),
       );
     }
-
-    final children = <Widget>[];
     if (_creating) {
       children.add(
         TaskEditorCard(
@@ -613,7 +617,22 @@ class _DayDetailBodyState extends State<_DayDetailBody> {
         children.add(_buildRow(task));
       }
     }
-    children.add(const SizedBox(height: AppSpacing.sm));
+    children.addAll([
+      const SizedBox(height: AppSpacing.sm),
+      const Divider(height: 1),
+      DayNoteSection(
+        key: const ValueKey<String>('day-detail-notes'),
+        controller: _noteController,
+        focusNode: _noteFocus,
+        focusItems: _focusItems,
+        status: _noteStatus,
+        hasNote: _note != null,
+        onBodyChanged: _onNoteBodyChanged,
+        onCommit: _commitNote,
+        onFocusItemsChanged: _onFocusItemsChanged,
+        onRetry: _commitNote,
+      ),
+    ]);
 
     return _Timeline(key: _timelineKey, children: children);
   }
@@ -680,15 +699,18 @@ class _TimelineState extends State<_Timeline> {
   Widget build(BuildContext context) {
     return Scrollbar(
       controller: _controller,
-      child: ListView(
-        controller: _controller,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.sm,
-          AppSpacing.xs,
-          AppSpacing.sm,
-          AppSpacing.xs,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: ListView(
+          controller: _controller,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.sm,
+            AppSpacing.xs,
+            AppSpacing.sm,
+            AppSpacing.xs,
+          ),
+          children: widget.children,
         ),
-        children: widget.children,
       ),
     );
   }
@@ -899,24 +921,21 @@ class _TimelineSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.lg,
-        AppSpacing.md,
-      ),
-      children: <Widget>[
-        for (var i = 0; i < 4; i++)
-          Container(
-            height: 52,
-            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSunken,
-              borderRadius: AppRadius.control,
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: <Widget>[
+          for (var i = 0; i < 4; i++)
+            Container(
+              height: 52,
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSunken,
+                borderRadius: AppRadius.control,
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

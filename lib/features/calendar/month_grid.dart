@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:material_ui/material_ui.dart';
 
@@ -102,28 +104,69 @@ class _MonthGridBodyState extends State<MonthGridBody> {
 
   double get _cellWidth => widget.width / 7;
 
-  double get _rowHeight {
-    final raw = widget.height / widget.grid.weekCount;
-    if (raw < CalendarMetrics.minRowHeight) return CalendarMetrics.minRowHeight;
-    if (raw > CalendarMetrics.maxRowHeight) return CalendarMetrics.maxRowHeight;
-    return raw;
+  final ScrollController _scroll = ScrollController();
+  late List<double> _rowEdges;
+  late List<double> _rowHeights;
+  int? _dragPointer;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
-  double get _contentHeight => _rowHeight * widget.grid.weekCount;
+  @override
+  void didUpdateWidget(MonthGridBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.width != widget.width || oldWidget.height != widget.height) {
+      _clearSelection();
+    }
+  }
+
+  /// 空闲周让出空间给密集周；空间充足时仍然等高。
+  void _measureRows() {
+    final minima = <double>[
+      for (final week in widget.grid.weeks)
+        CalendarMetrics.requiredRowHeight(
+          widget.spanLayout[week.first]?.laneCount ?? 0,
+          week.fold(
+            0,
+            (max, date) => math.max(max, widget.tasksByDate[date]?.length ?? 0),
+          ),
+        ),
+    ];
+    var remaining = widget.height;
+    var rows = minima.length;
+    var commonHeight = 0.0;
+    for (final minimum in minima.toList()..sort((a, b) => b.compareTo(a))) {
+      if (remaining / rows >= minimum) {
+        commonHeight = math.min(remaining / rows, CalendarMetrics.maxRowHeight);
+        break;
+      }
+      remaining -= minimum;
+      rows--;
+    }
+    _rowHeights = [
+      for (final minimum in minima) math.max(minimum, commonHeight),
+    ];
+    var edge = 0.0;
+    _rowEdges = [0, for (final height in _rowHeights) edge += height];
+  }
 
   @override
   Widget build(BuildContext context) {
+    _measureRows();
     final rows = Column(
       children: <Widget>[
         for (var index = 0; index < widget.grid.weeks.length; index++)
           SizedBox(
             key: ValueKey<String>('week-${widget.grid.weeks[index].first.iso}'),
-            height: _rowHeight,
+            height: _rowHeights[index],
             child: _WeekRow(
               week: widget.grid.weeks[index],
               month: widget.grid.month,
               isLastRow: index == widget.grid.weeks.length - 1,
-              rowHeight: _rowHeight,
+              rowHeight: _rowHeights[index],
               width: widget.width,
               layout:
                   widget.spanLayout[widget.grid.weeks[index].first] ??
@@ -142,13 +185,21 @@ class _MonthGridBodyState extends State<MonthGridBody> {
       ],
     );
 
-    // 窗口太矮时整块纵向滚动：7 列永不横向滚动。
-    if (_contentHeight > widget.height + 0.5) {
-      return SingleChildScrollView(
-        child: _interactive(extent: _contentHeight, rows: rows),
-      );
-    }
-    return _interactive(extent: widget.height, rows: rows);
+    // 保留同一视口，缩放变化时不重建日期格或滚动控制器。
+    return Scrollbar(
+      controller: _scroll,
+      thumbVisibility: _rowEdges.last > widget.height + 0.001,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: SingleChildScrollView(
+          controller: _scroll,
+          child: _interactive(
+            extent: math.max(_rowEdges.last, widget.height),
+            rows: rows,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _interactive({required double extent, required Widget rows}) {
@@ -176,10 +227,15 @@ class _MonthGridBodyState extends State<MonthGridBody> {
   }
 
   void _handleDown(PointerDownEvent event) {
-    if ((event.buttons & kSecondaryButton) == 0) return;
+    if (widget.onRangeSelected == null ||
+        _dragPointer != null ||
+        (event.buttons & kSecondaryButton) == 0) {
+      return;
+    }
     final date = _dateAt(event.localPosition);
     if (date == null) return;
     setState(() {
+      _dragPointer = event.pointer;
       _anchor = date;
       _focus = date;
       _pointer = event.localPosition;
@@ -188,7 +244,7 @@ class _MonthGridBodyState extends State<MonthGridBody> {
   }
 
   void _handleMove(PointerMoveEvent event) {
-    if (_anchor == null) return;
+    if (_dragPointer != event.pointer) return;
     final date = _dateAt(event.localPosition);
     setState(() {
       _pointer = event.localPosition;
@@ -200,6 +256,7 @@ class _MonthGridBodyState extends State<MonthGridBody> {
   }
 
   void _handleUp(PointerUpEvent event) {
+    if (_dragPointer != event.pointer) return;
     final selection = _selection;
     final shouldFire = _dragging && selection != null;
     final callback = widget.onRangeSelected;
@@ -208,11 +265,12 @@ class _MonthGridBodyState extends State<MonthGridBody> {
   }
 
   void _handleCancel(PointerCancelEvent event) {
-    if (_anchor == null) return;
+    if (_dragPointer != event.pointer) return;
     setState(_clearSelection);
   }
 
   void _clearSelection() {
+    _dragPointer = null;
     _anchor = null;
     _focus = null;
     _pointer = null;
@@ -222,7 +280,7 @@ class _MonthGridBodyState extends State<MonthGridBody> {
   /// 指针位置 → 网格里的日期；落在网格外返回 null（拖出边界时保持上一次结果）。
   LocalDate? _dateAt(Offset position) {
     final column = (position.dx / _cellWidth).floor();
-    final row = (position.dy / _rowHeight).floor();
+    final row = _rowEdges.indexWhere((edge) => edge > position.dy) - 1;
     if (column < 0 || column > 6 || row < 0 || row >= widget.grid.weekCount) {
       return null;
     }
@@ -267,9 +325,8 @@ class _MonthGridBodyState extends State<MonthGridBody> {
       final left = firstColumn * _cellWidth + 1;
       final right = (lastColumn + 1) * _cellWidth - 1;
       // 相邻周之间不留缝，并集后才能画成一整块连续区域。
-      final top = row * _rowHeight + (row == selection.firstRow ? 1 : 0);
-      final bottom =
-          (row + 1) * _rowHeight - (row == selection.lastRow ? 1 : 0);
+      final top = _rowEdges[row] + (row == selection.firstRow ? 1 : 0);
+      final bottom = _rowEdges[row + 1] - (row == selection.lastRow ? 1 : 0);
       runs.add(Rect.fromLTRB(left, top, right, bottom));
     }
     return runs;
@@ -278,7 +335,9 @@ class _MonthGridBodyState extends State<MonthGridBody> {
   Widget _rangeHint(_DaySelection selection, double extent) {
     final pointer = _pointer!;
     const hintWidth = 168.0;
-    final left = (pointer.dx + 14).clamp(4.0, widget.width - hintWidth - 4);
+    final left = (pointer.dx + 14)
+        .clamp(4.0, math.max(4.0, widget.width - hintWidth - 4))
+        .toDouble();
     final top = (pointer.dy + 18).clamp(4.0, extent - 30);
     return Positioned(
       left: left,
@@ -436,11 +495,7 @@ class _WeekRow extends StatelessWidget {
           child: Row(
             children: <Widget>[
               for (var column = 0; column < 7; column++)
-                SizedBox(
-                  width: cellWidth,
-                  height: rowHeight,
-                  child: _buildCell(column),
-                ),
+                Expanded(child: _buildCell(column)),
             ],
           ),
         ),
@@ -466,7 +521,12 @@ class _WeekRow extends StatelessWidget {
       tasks: tasks,
       projects: projects,
       spanCount: spansPerDay[date] ?? 0,
-      hiddenSpanCount: column == 6 ? layout.hiddenCount : 0,
+      hiddenSpanCount: layout.hidden
+          .where(
+            (span) =>
+                !date.isBefore(span.startDate) && !date.isAfter(span.endDate),
+          )
+          .length,
       onSelect: () => onSelectDate(date),
       onOpenDay: () => onOpenDay(date),
       onTaskTap: onTaskTap,
